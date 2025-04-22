@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
-import path from 'path';
 import { getReportUrl } from '@/config';
-
-// Directory to store reports
-const REPORTS_DIR = path.join(process.cwd(), 'data', 'reports');
+import { supabase } from '@/lib/supabase';
 
 // Report metadata interface
 interface Report {
@@ -16,34 +12,29 @@ interface Report {
   adCount: number;
 }
 
-// Ensure reports directory exists
-if (!fs.existsSync(REPORTS_DIR)) {
-  fs.mkdirSync(REPORTS_DIR, { recursive: true });
-}
-
-// Get list of reports
+// Get all reports
 export async function GET() {
   try {
-    // Read report index file or create one if it doesn't exist
-    const indexPath = path.join(REPORTS_DIR, 'index.json');
+    // Fetch report metadata from Supabase
+    const { data: reports, error } = await supabase
+      .from('report_metadata')
+      .select('*')
+      .order('created', { ascending: false });
     
-    if (!fs.existsSync(indexPath)) {
-      fs.writeFileSync(indexPath, JSON.stringify({ reports: [] }));
-      return NextResponse.json({ reports: [] });
+    if (error) {
+      throw new Error(`Error fetching reports: ${error.message}`);
     }
     
-    const indexData = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
-    
     // Add report URLs to each report
-    const reportsWithUrls = indexData.reports.map((report: Report) => ({
+    const reportsWithUrls = reports.map(report => ({
       ...report,
       reportUrl: getReportUrl(report.id)
     }));
     
     return NextResponse.json({ reports: reportsWithUrls });
   } catch (error) {
-    console.error('Error getting reports:', error);
-    return NextResponse.json({ error: 'Failed to get reports' }, { status: 500 });
+    console.error('Error fetching reports:', error);
+    return NextResponse.json({ error: 'Failed to fetch reports' }, { status: 500 });
   }
 }
 
@@ -77,25 +68,29 @@ export async function POST(request: Request) {
       title: body.title,
       brand: body.data.brand,
       created: new Date().toISOString(),
-      adCount: body.data.ads.length
+      adcount: body.data.ads.length
     };
     
-    // Save the report data
-    const reportDataPath = path.join(REPORTS_DIR, `${reportId}.json`);
-    fs.writeFileSync(reportDataPath, JSON.stringify(body.data, null, 2));
+    // Insert report metadata into Supabase
+    const { error: metadataError } = await supabase
+      .from('report_metadata')
+      .insert(reportMetadata);
     
-    // Update the index file
-    const indexPath = path.join(REPORTS_DIR, 'index.json');
-    let indexData;
-    
-    if (fs.existsSync(indexPath)) {
-      indexData = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
-    } else {
-      indexData = { reports: [] };
+    if (metadataError) {
+      throw new Error(`Error inserting report metadata: ${metadataError.message}`);
     }
     
-    indexData.reports.push(reportMetadata);
-    fs.writeFileSync(indexPath, JSON.stringify(indexData, null, 2));
+    // Insert report data into Supabase
+    const { error: dataError } = await supabase
+      .from('reports')
+      .insert({
+        id: reportId,
+        data: body.data
+      });
+    
+    if (dataError) {
+      throw new Error(`Error inserting report data: ${dataError.message}`);
+    }
     
     // Get the full URL for the report
     const reportUrl = getReportUrl(reportId);

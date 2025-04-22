@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 
 // Import the dashboards map from the shared store
-import { dashboards } from './dashboardStore';
+// This is a hack for demo purposes - in a real app, you'd use a database
+import { dashboards } from '@/lib/dashboard-store';
 
 // Sample dashboard data
 const defaultDashboardData = {

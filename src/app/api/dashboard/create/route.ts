@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { dashboards } from '../dashboardStore';
+
+// In a real application, this would be a database
+// For demonstration, we'll use an in-memory store - moved to a separate file
+import { dashboards } from '@/lib/dashboard-store';
 
 export async function POST(request: Request) {
   try {

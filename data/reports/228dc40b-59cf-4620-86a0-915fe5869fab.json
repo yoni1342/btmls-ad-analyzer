@@ -1,0 +1,23 @@
+{
+  "brand": "Reggie",
+  "ads": [
+    {
+      "ad_id": "120215098845820068",
+      "ad_name": "Evergreen_VID_INFL_samgoezhaam",
+      "ad_text": "Keep your travels smooth and your style cool with the Sierra Collection.",
+      "ad_title": "Keep your travels smooth and your coffee hot with the Spill-Proof Wonder Cup",
+      "image_url": "https://www.reggie.com/media/catalog/product/s/i/sierra_commuter_cup_pdp_1.jpg",
+      "video_url": "https://www.reggie.com/media/catalog/product/s/i/sierra_commuter_cup_pdp_1.mp4",
+      "post_link": "https://www.facebook.com/1072305318274848/videos/572357522493736",
+      "Angle": "Feature-Based Angle",
+      "comments": [
+        {
+          "comment_id": "1076578224514224_358263893113691",
+          "message": "I'm sorry but those lids look super cheap",
+          "theme": "Concern about quality",
+          "sentiment": "Negative"
+        }
+      ]
+    }
+  ]
+}
