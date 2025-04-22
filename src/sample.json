@@ -1,0 +1,58 @@
+{
+    "brand": "Reggie",
+    "ads": [
+        {
+            "ad_id": "120215098845820068",
+            "ad_name": "Evergreen_VID_INFL_samgoezhaam iteration_Showcase_SHOPNOW_SierraCommuterCupPDP",
+            "ad_text": "Keep your travels smooth and your style cool with the Sierra Collection.",
+            "ad_title": "Keep your travels smooth and your coffee hot with the Spill-Proof Wonder Cup",
+            "image_url": "https://www.reggie.com/media/catalog/product/s/i/sierra_commuter_cup_pdp_1.jpg",
+            "video_url": "https://www.reggie.com/media/catalog/product/s/i/sierra_commuter_cup_pdp_1.mp4",
+            "post_link": "https://www.facebook.com/1072305318274848/videos/572357522493736",
+            "Angle": "The ad focuses on how the Corkcicle products provide practical solutions for coffee lovers who travel, highlighting its compact design and ability to make quality coffee on-the-go, thereby eliminating the inconsistency of hotel and Airbnb coffee makers.",
+            "Angle Type": "Feature-Based Angle",
+            "Explanation": "The ad text and video transcript both emphasize specific features of the Corkcicle products, such as the airtight seal canister and Palm Press, designed to preserve coffee freshness and offer convenience. Its compact size and easy operation make it ideal for travelers, which is highlighted as a primary benefit. Although the problem of lacking good coffee when traveling (due to mistrust of hotel coffee makers) is mentioned, the ad primarily highlights unique product features and benefits (e.g., keeping coffee fresh, being compact, and providing consistent quality). According to the Airtable classification, this makes it a 'Feature-Based Angle' because the focus is on the attributes that make these products stand out for traveling coffee lovers.",
+            "comments":[
+                {
+                    "comment_id":"1076578224514224_358263893113691",
+                    "message":"I’m sorry but those lids look super cheap",
+                    "theme": "Concern about the quality of the product's lids perceived as cheap.",
+                    "sentiment": "Negative"
+                },
+                {
+                    "comment_id":"1076578224514224_958463893113691",
+                    "message":"Looks like a cheap plastic",
+                    "theme": "Concern about the quality of the product's lids perceived as cheap.",
+                    "sentiment": "Positive"
+                }
+
+            ]
+        },
+        {
+            "ad_id": "120215098845820068",
+            "ad_name": "Evergreen_VID_INFL_samgoezhaam iteration_Showcase_SHOPNOW_SierraCommuterCupPDP",
+            "ad_text": "Keep your travels smooth and your style cool with the Sierra Collection.",
+            "ad_title": "Keep your travels smooth and your coffee hot with the Spill-Proof Wonder Cup",
+            "image_url": "https://www.reggie.com/media/catalog/product/s/i/sierra_commuter_cup_pdp_1.jpg",
+            "video_url": "https://www.reggie.com/media/catalog/product/s/i/sierra_commuter_cup_pdp_1.mp4",
+            "post_link": "https://www.facebook.com/1072305318274848/videos/572357522493736",
+            "Angle": "The ad focuses on how the Corkcicle products provide practical solutions for coffee lovers who travel, highlighting its compact design and ability to make quality coffee on-the-go, thereby eliminating the inconsistency of hotel and Airbnb coffee makers.",
+            "Angle Type": "Feature-Based Angle",
+            "Explanation": "The ad text and video transcript both emphasize specific features of the Corkcicle products, such as the airtight seal canister and Palm Press, designed to preserve coffee freshness and offer convenience. Its compact size and easy operation make it ideal for travelers, which is highlighted as a primary benefit. Although the problem of lacking good coffee when traveling (due to mistrust of hotel coffee makers) is mentioned, the ad primarily highlights unique product features and benefits (e.g., keeping coffee fresh, being compact, and providing consistent quality). According to the Airtable classification, this makes it a 'Feature-Based Angle' because the focus is on the attributes that make these products stand out for traveling coffee lovers.",
+            "comments":[
+                {
+                    "comment_id":"1076578224514224_958253893113691",
+                    "message":"I’m sorry but those lids look super cheap",
+                    "theme": "Concern about the quality of the product's lids perceived as cheap.",
+                    "sentiment": "Positive"
+                },
+                {
+                    "comment_id":"1076578224514224_95826389314691",
+                    "message":"I’m sorry but those lids look super cheap",
+                    "theme": "Concern about the quality of the product's lids perceived as cheap.",
+                    "sentiment": "Negative"
+                }
+            ]   
+        }
+    ]
+}

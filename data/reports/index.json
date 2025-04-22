@@ -1,0 +1,32 @@
+{
+  "reports": [
+    {
+      "id": "c97c2870-b329-4d6a-8816-366ec3c5d3da",
+      "title": "Reggie Report ",
+      "brand": "Reggie",
+      "created": "2025-04-22T07:57:28.721Z",
+      "adCount": 2
+    },
+    {
+      "id": "b50c1eca-b881-47b0-9353-db20f4dde815",
+      "title": "Sample Brand Report",
+      "brand": "Reggie",
+      "created": "2025-04-22T11:07:13.091Z",
+      "adCount": 1
+    },
+    {
+      "id": "ebff09d7-c9ca-482f-887a-1b2cf80f5a18",
+      "title": "Sample Brand Report",
+      "brand": "Reggie",
+      "created": "2025-04-22T11:57:05.344Z",
+      "adCount": 1
+    },
+    {
+      "id": "754ca5a3-9deb-46e5-b707-d30aba6d3128",
+      "title": "Sample Brand Report",
+      "brand": "Reggie",
+      "created": "2025-04-22T12:25:48.386Z",
+      "adCount": 1
+    }
+  ]
+}
