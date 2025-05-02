@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   createColumnHelper,
   flexRender,
@@ -9,6 +9,7 @@ import {
   getSortedRowModel,
   useReactTable,
   getFilteredRowModel,
+  PaginationState,
 } from '@tanstack/react-table';
 
 type Comment = {
@@ -28,6 +29,10 @@ export default function CommentTable({ comments }: CommentTableProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [sentimentFilter, setSentimentFilter] = useState('');
   const [themeFilter, setThemeFilter] = useState('');
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 50,
+  });
   
   const toggleExpand = (id: string) => {
     setExpanded(prev => ({
@@ -37,12 +42,19 @@ export default function CommentTable({ comments }: CommentTableProps) {
   };
   
   // Extract unique sentiment and theme values for filters
-  const sentiments = Array.from(new Set(comments.map(c => c.sentiment || 'Unknown')));
-  const themes = Array.from(new Set(comments.map(c => c.theme || 'Unknown')));
+  const sentiments = useMemo(() => 
+    Array.from(new Set(comments.map(c => c.sentiment || 'Unknown'))),
+    [comments]
+  );
+  
+  const themes = useMemo(() => 
+    Array.from(new Set(comments.map(c => c.theme || 'Unknown'))),
+    [comments]
+  );
 
   const columnHelper = createColumnHelper<Comment>();
 
-  const columns = [
+  const columns = useMemo(() => [
     columnHelper.accessor('message', {
       header: 'Comment',
       cell: info => {
@@ -106,33 +118,61 @@ export default function CommentTable({ comments }: CommentTableProps) {
         </div>
       ),
     }),
-  ];
+  ], [expanded, toggleExpand]);
 
   // Create properly typed column filters
-  const columnFilters = [];
-  if (sentimentFilter) {
-    columnFilters.push({ id: 'sentiment', value: sentimentFilter });
-  }
-  if (themeFilter) {
-    columnFilters.push({ id: 'theme', value: themeFilter });
-  }
+  const columnFilters = useMemo(() => {
+    const filters = [];
+    if (sentimentFilter) {
+      filters.push({ id: 'sentiment', value: sentimentFilter });
+    }
+    if (themeFilter) {
+      filters.push({ id: 'theme', value: themeFilter });
+    }
+    return filters;
+  }, [sentimentFilter, themeFilter]);
 
   const table = useReactTable({
     data: comments,
     columns,
     state: {
       columnFilters,
+      pagination,
     },
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
+    manualPagination: false,
   });
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setPagination(prev => ({
+      ...prev,
+      pageIndex: 0,
+    }));
+  }, [sentimentFilter, themeFilter]);
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    try {
+      setPagination(prev => ({
+        pageIndex: 0,  // Reset to first page when changing page size
+        pageSize: newPageSize,
+      }));
+    } catch (error) {
+      console.error("Error changing page size:", error);
+    }
+  };
+
+  // Safe calculation for page counts and indices
+  const pageCount = Math.max(table.getPageCount(), 1);
+  const currentPageIndex = Math.min(pagination.pageIndex, pageCount - 1);
+  
+  const totalFilteredRows = table.getFilteredRowModel().rows.length;
+  const startIndex = totalFilteredRows > 0 ? currentPageIndex * pagination.pageSize + 1 : 0;
+  const endIndex = Math.min((currentPageIndex + 1) * pagination.pageSize, totalFilteredRows);
 
   return (
     <div>
@@ -189,15 +229,23 @@ export default function CommentTable({ comments }: CommentTableProps) {
             ))}
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {table.getRowModel().rows.map(row => (
-              <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map(row => (
+                <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  {row.getVisibleCells().map(cell => (
+                    <td key={cell.id} className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={columns.length} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No comments found
+                </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
@@ -235,14 +283,32 @@ export default function CommentTable({ comments }: CommentTableProps) {
         </div>
         <div>
           <span className="text-sm text-gray-700 dark:text-gray-300">
-            Page {table.getState().pagination.pageIndex + 1} of{' '}
-            {table.getPageCount()}
+            Page {currentPageIndex + 1} of {pageCount}
           </span>
         </div>
       </div>
       
-      <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-        Showing {table.getFilteredRowModel().rows.length} of {comments.length} comments
+      <div className="mt-4 flex items-center justify-between">
+        <div>
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            Show
+            <select
+              value={pagination.pageSize}
+              onChange={e => handlePageSizeChange(Number(e.target.value))}
+              className="mx-2 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+            >
+              {[10, 25, 50, 100].map(pageSize => (
+                <option key={pageSize} value={pageSize}>
+                  {pageSize}
+                </option>
+              ))}
+            </select>
+            entries
+          </span>
+        </div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Showing {startIndex} - {endIndex} of {totalFilteredRows} comments
+        </div>
       </div>
     </div>
   );
