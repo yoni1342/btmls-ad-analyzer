@@ -14,9 +14,8 @@ interface Ad {
   ad_name?: string;
   ad_title?: string;
   ad_text?: string;
-  Angle_Type?: string;
-  'Angle Type'?: string;
-  Target_Audience?: string;
+  angle_type?: string;
+  target_audience?: string;
   image_url?: string;
   video_url?: string;
   post_link?: string;
@@ -54,10 +53,10 @@ export default function AdTable({ ads }: AdTableProps) {
         </div>
       ),
     }),
-    columnHelper.accessor('Angle_Type', {
+    columnHelper.accessor('angle_type', {
       header: 'Angle Type',
       cell: info => {
-        const angleType = info.getValue() || info.row.original['Angle Type'] || 'Unknown';
+        const angleType = info.getValue() || 'Unknown';
         return (
           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
             {angleType}

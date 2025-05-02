@@ -33,9 +33,8 @@ interface Ad {
   ad_name?: string;
   ad_title?: string;
   ad_text?: string;
-  Angle_Type?: string;
-  'Angle Type'?: string;
-  Target_Audience?: string;
+  angle_type?: string;
+  target_audience?: string;
   image_url?: string;
   video_url?: string;
   post_link?: string;
@@ -74,13 +73,13 @@ export default function ReportPage({ data }: ReportPageProps) {
   );
   
   // Extract angle types for pie chart
-  const angleTypes = Array.from(new Set(ads.map(ad => ad.Angle_Type || ad['Angle Type'] || 'Unknown')));
+  const angleTypes = Array.from(new Set(ads.map(ad => ad.angle_type || 'Unknown')));
   const angleTypeData = {
     labels: angleTypes,
     datasets: [
       {
         data: angleTypes.map(type => 
-          ads.filter(ad => (ad.Angle_Type || ad['Angle Type'] || 'Unknown') === type).length
+          ads.filter(ad => (ad.angle_type || 'Unknown') === type).length
         ),
         backgroundColor: [
           'rgba(255, 99, 132, 0.7)',
