@@ -19,6 +19,7 @@ type Comment = {
   sentiment?: string;
   ad_id?: string;
   ad_title?: string;
+  angle_type?: string;
 };
 
 type CommentTableProps = {
@@ -29,6 +30,7 @@ export default function CommentTable({ comments }: CommentTableProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [sentimentFilter, setSentimentFilter] = useState('');
   const [themeFilter, setThemeFilter] = useState('');
+  const [angleTypeFilter, setAngleTypeFilter] = useState('');
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 50,
@@ -49,6 +51,11 @@ export default function CommentTable({ comments }: CommentTableProps) {
   
   const themes = useMemo(() => 
     Array.from(new Set(comments.map(c => c.theme || 'Unknown'))),
+    [comments]
+  );
+
+  const angleTypes = useMemo(() =>
+    Array.from(new Set(comments.map(c => c.angle_type || 'Unknown'))),
     [comments]
   );
 
@@ -110,6 +117,11 @@ export default function CommentTable({ comments }: CommentTableProps) {
       cell: info => info.getValue() || 'Unknown',
       filterFn: 'equals',
     }),
+    columnHelper.accessor('angle_type', {
+      header: 'Angle',
+      cell: info => info.getValue() || 'Unknown',
+      filterFn: 'equals',
+    }),
     columnHelper.accessor('ad_title', {
       header: 'Related Ad',
       cell: info => (
@@ -129,8 +141,11 @@ export default function CommentTable({ comments }: CommentTableProps) {
     if (themeFilter) {
       filters.push({ id: 'theme', value: themeFilter });
     }
+    if (angleTypeFilter) {
+      filters.push({ id: 'angle_type', value: angleTypeFilter });
+    }
     return filters;
-  }, [sentimentFilter, themeFilter]);
+  }, [sentimentFilter, themeFilter, angleTypeFilter]);
 
   const table = useReactTable({
     data: comments,
@@ -153,7 +168,7 @@ export default function CommentTable({ comments }: CommentTableProps) {
       ...prev,
       pageIndex: 0,
     }));
-  }, [sentimentFilter, themeFilter]);
+  }, [sentimentFilter, themeFilter, angleTypeFilter]);
 
   const handlePageSizeChange = (newPageSize: number) => {
     try {
@@ -178,6 +193,19 @@ export default function CommentTable({ comments }: CommentTableProps) {
     <div>
       <div className="mb-4 flex flex-wrap gap-4">
         <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter by Angle</label>
+          <select
+            value={angleTypeFilter}
+            onChange={e => setAngleTypeFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          >
+            <option value="">All Angles</option>
+            {angleTypes.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter by Sentiment</label>
           <select
             value={sentimentFilter}
@@ -192,7 +220,6 @@ export default function CommentTable({ comments }: CommentTableProps) {
             ))}
           </select>
         </div>
-        
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter by Theme</label>
           <select

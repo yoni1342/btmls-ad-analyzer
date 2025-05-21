@@ -16,6 +16,7 @@ import Header from '@/app/components/report/Header';
 import AdTable from '@/app/components/report/AdTable';
 import CommentTable from '@/app/components/report/CommentTable';
 import MediaGrid from '@/app/components/report/MediaGrid';
+import React from 'react';
 
 // Register ChartJS components
 ChartJS.register(
@@ -68,7 +69,8 @@ export default function ReportPage({ data }: ReportPageProps) {
     (ad.comments || []).map(comment => ({
       ...comment,
       ad_id: ad.ad_id,
-      ad_title: ad.ad_title
+      ad_title: ad.ad_title,
+      angle_type: ad.angle_type
     }))
   );
   
@@ -168,6 +170,47 @@ export default function ReportPage({ data }: ReportPageProps) {
     ],
   };
   
+  // CSV export helpers
+  function convertToCSV(objArray: any[], columns: string[]): string {
+    const header = columns.join(',');
+    const rows = objArray.map(row =>
+      columns.map(field => {
+        let value = row[field];
+        if (typeof value === 'string') {
+          // Escape quotes and commas
+          value = '"' + value.replace(/"/g, '""') + '"';
+        }
+        return value ?? '';
+      }).join(',')
+    );
+    return [header, ...rows].join('\r\n');
+  }
+
+  function downloadCSV(csv: string, filename: string) {
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Export handlers
+  const handleExportAds = () => {
+    const columns = ['ad_id', 'ad_name', 'ad_title', 'ad_text', 'angle_type', 'target_audience', 'image_url', 'video_url', 'post_link'];
+    const csv = convertToCSV(ads, columns);
+    downloadCSV(csv, 'ads.csv');
+  };
+
+  const handleExportComments = () => {
+    const columns = ['comment_id', 'ad_id', 'ad_title', 'message', 'theme', 'sentiment'];
+    const csv = convertToCSV(allComments, columns);
+    downloadCSV(csv, 'comments.csv');
+  };
+
   return (
     <div className="report-page">
       <Header 
@@ -175,7 +218,22 @@ export default function ReportPage({ data }: ReportPageProps) {
         totalAds={ads.length} 
         totalComments={allComments.length} 
       />
-      
+      {/* Export buttons */}
+      <div className="mb-4 flex gap-2">
+        <button
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded shadow"
+          onClick={handleExportAds}
+        >
+          Export Ads CSV
+        </button>
+        <button
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded shadow"
+          onClick={handleExportComments}
+        >
+          Export Comments CSV
+        </button>
+      </div>
+      {/* Tabs */}
       <div className="mb-8">
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           <button
