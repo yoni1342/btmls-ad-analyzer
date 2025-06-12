@@ -24,15 +24,52 @@ interface Ad {
 
 type AdTableProps = {
   ads: Ad[];
+  selectedAdIds?: string[];
+  onSelectedAdIdsChange?: (ids: string[]) => void;
 };
 
-export default function AdTable({ ads }: AdTableProps) {
+export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, onSelectedAdIdsChange }: AdTableProps) {
+  // Support both controlled and uncontrolled selection
+  const [uncontrolledSelectedAdIds, setUncontrolledSelectedAdIds] = useState<string[]>([]);
+  const selectedAdIds = controlledSelectedAdIds ?? uncontrolledSelectedAdIds;
+  const setSelectedAdIds = onSelectedAdIdsChange ?? setUncontrolledSelectedAdIds;
+
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
 
   const columnHelper = createColumnHelper<Ad>();
 
   const columns = [
+    {
+      id: 'select',
+      header: () => <input
+        type="checkbox"
+        checked={ads.length > 0 && selectedAdIds.length === ads.length}
+        indeterminate={selectedAdIds.length > 0 && selectedAdIds.length < ads.length}
+        onChange={e => {
+          if (e.target.checked) {
+            setSelectedAdIds(ads.map(ad => ad.ad_id));
+          } else {
+            setSelectedAdIds([]);
+          }
+        }}
+      />,
+      cell: ({ row }: any) => (
+        <input
+          type="checkbox"
+          checked={selectedAdIds.includes(row.original.ad_id)}
+          onChange={e => {
+            const id = row.original.ad_id;
+            if (e.target.checked) {
+              setSelectedAdIds([...selectedAdIds, id]);
+            } else {
+              setSelectedAdIds(selectedAdIds.filter(selectedId => selectedId !== id));
+            }
+          }}
+          onClick={e => e.stopPropagation()}
+        />
+      ),
+    },
     columnHelper.accessor('ad_id', {
       header: 'Ad ID',
       cell: info => info.getValue(),
@@ -115,7 +152,7 @@ export default function AdTable({ ads }: AdTableProps) {
     columnHelper.accessor('comments', {
       header: 'Comments',
       cell: info => (info.getValue()?.length || 0) + ' comments',
-    }),
+    })
   ];
 
   const table = useReactTable({
@@ -152,7 +189,18 @@ export default function AdTable({ ads }: AdTableProps) {
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {table.getRowModel().rows.map(row => (
-              <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+              <tr
+                key={row.id}
+                className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${selectedAdIds.includes(row.original.ad_id) ? 'bg-blue-50 dark:bg-blue-900' : ''}`}
+                onClick={() => {
+                  const id = row.original.ad_id;
+                  if (selectedAdIds.includes(id)) {
+                    setSelectedAdIds(selectedAdIds.filter(selectedId => selectedId !== id));
+                  } else {
+                    setSelectedAdIds([...selectedAdIds, id]);
+                  }
+                }}
+              >
                 {row.getVisibleCells().map(cell => (
                   <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

@@ -20,21 +20,41 @@ type Comment = {
   ad_id?: string;
   ad_title?: string;
   angle_type?: string;
+  "Cluster name"?: string;
+  "Cluster Description"?: string;
+  created_time?: string;
+};
+
+type Ad = {
+  ad_id: string;
+  ad_name?: string;
+  ad_title?: string;
+  ad_text?: string;
+  angle_type?: string;
+  image_url?: string;
+  video_url?: string;
+  post_link?: string;
 };
 
 type CommentTableProps = {
   comments: Comment[];
+  ads?: Ad[];
+  selectedAdIds?: string[]; // For future extensibility, not used for filtering here
+  clusters?: any[];
+  clusterComments?: any[];
 };
 
-export default function CommentTable({ comments }: CommentTableProps) {
+export default function CommentTable({ comments, ads = [], selectedAdIds, clusters = [], clusterComments = [] }: CommentTableProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [sentimentFilter, setSentimentFilter] = useState('');
-  const [themeFilter, setThemeFilter] = useState('');
+  const [clusterFilter, setClusterFilter] = useState('');
   const [angleTypeFilter, setAngleTypeFilter] = useState('');
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 50,
   });
+  const [selectedComment, setSelectedComment] = useState<Comment | null>(null);
+  const [showModal, setShowModal] = useState(false);
   
   const toggleExpand = (id: string) => {
     setExpanded(prev => ({
@@ -42,15 +62,31 @@ export default function CommentTable({ comments }: CommentTableProps) {
       [id]: !prev[id]
     }));
   };
+
+  const handleRowClick = (comment: Comment) => {
+    setSelectedComment(comment);
+    setShowModal(true);
+  };
+
+  const getAdForComment = (comment: Comment) => {
+    if (!comment?.ad_id) return null;
+    return ads.find(ad => ad.ad_id === comment.ad_id);
+  };
   
+  // Compute filtered comments by cluster
+  const filteredByCluster = useMemo(() => {
+    if (!clusterFilter) return comments;
+    // Find the cluster id for the selected cluster name
+    const selectedCluster = clusters.find(c => c["Cluster name"] === clusterFilter);
+    if (!selectedCluster) return comments;
+    // Find all comment_ids linked to this cluster id
+    const commentIds = clusterComments.filter(cc => cc.id === selectedCluster.id).map(cc => cc.comment_id);
+    return comments.filter(c => commentIds.includes(c.comment_id));
+  }, [comments, clusterFilter, clusters, clusterComments]);
+
   // Extract unique sentiment and theme values for filters
   const sentiments = useMemo(() => 
     Array.from(new Set(comments.map(c => c.sentiment || 'Unknown'))),
-    [comments]
-  );
-  
-  const themes = useMemo(() => 
-    Array.from(new Set(comments.map(c => c.theme || 'Unknown'))),
     [comments]
   );
 
@@ -76,7 +112,10 @@ export default function CommentTable({ comments }: CommentTableProps) {
             </div>
             {content && content.length > 100 && (
               <button
-                onClick={() => toggleExpand(id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleExpand(id);
+                }}
                 className="text-blue-500 text-xs mt-1"
               >
                 {isExpanded ? 'Show less' : 'Show more'}
@@ -87,7 +126,9 @@ export default function CommentTable({ comments }: CommentTableProps) {
       },
     }),
     columnHelper.accessor('sentiment', {
-      header: 'Sentiment',
+      header: () => (
+        <div className="cursor-pointer">Sentiment</div>
+      ),
       cell: info => {
         const sentiment = info.getValue();
         let bgColor = 'bg-gray-100';
@@ -111,16 +152,37 @@ export default function CommentTable({ comments }: CommentTableProps) {
         );
       },
       filterFn: 'equals',
+      sortingFn: 'alphanumeric',
     }),
-    columnHelper.accessor('theme', {
-      header: 'Theme',
-      cell: info => info.getValue() || 'Unknown',
+    columnHelper.accessor((row) => row["Cluster name"] || row.theme, {
+      id: 'cluster',
+      header: () => (
+        <div className="cursor-pointer">Cluster/Theme</div>
+      ),
+      cell: info => {
+        const clusterName = info.getValue();
+        const clusterDesc = info.row.original["Cluster Description"];
+        return (
+          <div className="group relative">
+            <span>{clusterName || 'Unknown'}</span>
+            {clusterDesc && (
+              <div className="absolute z-10 hidden group-hover:block bg-gray-800 text-white p-2 rounded w-64 text-xs -left-16 top-6">
+                {clusterDesc}
+              </div>
+            )}
+          </div>
+        );
+      },
       filterFn: 'equals',
+      sortingFn: 'alphanumeric',
     }),
     columnHelper.accessor('angle_type', {
-      header: 'Angle',
+      header: () => (
+        <div className="cursor-pointer">Angle</div>
+      ),
       cell: info => info.getValue() || 'Unknown',
       filterFn: 'equals',
+      sortingFn: 'alphanumeric',
     }),
     columnHelper.accessor('ad_title', {
       header: 'Related Ad',
@@ -130,6 +192,17 @@ export default function CommentTable({ comments }: CommentTableProps) {
         </div>
       ),
     }),
+    columnHelper.accessor('created_time', {
+      header: () => (
+        <div className="cursor-pointer">Date</div>
+      ),
+      cell: info => {
+        const dateStr = info.getValue();
+        if (!dateStr) return 'Unknown';
+        return new Date(dateStr).toLocaleDateString();
+      },
+      sortingFn: 'datetime',
+    }),
   ], [expanded, toggleExpand]);
 
   // Create properly typed column filters
@@ -138,17 +211,17 @@ export default function CommentTable({ comments }: CommentTableProps) {
     if (sentimentFilter) {
       filters.push({ id: 'sentiment', value: sentimentFilter });
     }
-    if (themeFilter) {
-      filters.push({ id: 'theme', value: themeFilter });
+    if (clusterFilter) {
+      filters.push({ id: 'cluster', value: clusterFilter });
     }
     if (angleTypeFilter) {
       filters.push({ id: 'angle_type', value: angleTypeFilter });
     }
     return filters;
-  }, [sentimentFilter, themeFilter, angleTypeFilter]);
+  }, [sentimentFilter, clusterFilter, angleTypeFilter]);
 
   const table = useReactTable({
-    data: comments,
+    data: filteredByCluster,
     columns,
     state: {
       columnFilters,
@@ -160,6 +233,8 @@ export default function CommentTable({ comments }: CommentTableProps) {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     manualPagination: false,
+    enableSorting: true,
+    enableColumnFilters: true,
   });
 
   // Reset to first page when filters change
@@ -168,7 +243,7 @@ export default function CommentTable({ comments }: CommentTableProps) {
       ...prev,
       pageIndex: 0,
     }));
-  }, [sentimentFilter, themeFilter, angleTypeFilter]);
+  }, [sentimentFilter, clusterFilter, angleTypeFilter]);
 
   const handlePageSizeChange = (newPageSize: number) => {
     try {
@@ -188,6 +263,129 @@ export default function CommentTable({ comments }: CommentTableProps) {
   const totalFilteredRows = table.getFilteredRowModel().rows.length;
   const startIndex = totalFilteredRows > 0 ? currentPageIndex * pagination.pageSize + 1 : 0;
   const endIndex = Math.min((currentPageIndex + 1) * pagination.pageSize, totalFilteredRows);
+
+  // Modal component
+  const AdDetailModal = () => {
+    if (!selectedComment) return null;
+    
+    const ad = getAdForComment(selectedComment);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Comment Details
+              </h3>
+              <button 
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-500 focus:outline-none"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <p className="text-lg">{selectedComment.message}</p>
+              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                <div>Date: {selectedComment.created_time ? new Date(selectedComment.created_time).toLocaleString() : 'Unknown'}</div>
+                <div>Sentiment: {selectedComment.sentiment || 'Unknown'}</div>
+                <div>Cluster: {selectedComment["Cluster name"] || selectedComment.theme || 'Unknown'}</div>
+                {selectedComment["Cluster Description"] && (
+                  <div>Cluster Description: {selectedComment["Cluster Description"]}</div>
+                )}
+              </div>
+            </div>
+            
+            {ad ? (
+              <div>
+                <h4 className="text-lg font-medium mb-4">Related Ad</h4>
+                <div className="space-y-4">
+                  <div>
+                    <span className="font-medium">Title:</span> {ad.ad_title || 'Untitled'}
+                  </div>
+                  <div>
+                    <span className="font-medium">ID:</span> {ad.ad_id}
+                  </div>
+                  {ad.ad_name && (
+                    <div>
+                      <span className="font-medium">Name:</span> {ad.ad_name}
+                    </div>
+                  )}
+                  {ad.angle_type && (
+                    <div>
+                      <span className="font-medium">Angle Type:</span> {ad.angle_type}
+                    </div>
+                  )}
+                  {ad.ad_text && (
+                    <div>
+                      <span className="font-medium">Text:</span>
+                      <p className="mt-1">{ad.ad_text}</p>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {ad.image_url && (
+                      <div>
+                        <span className="font-medium">Image:</span>
+                        <div className="mt-2">
+                          <img src={ad.image_url} alt="Ad visual" className="rounded-md max-h-64 object-contain" />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {ad.video_url && (
+                      <div>
+                        <span className="font-medium">Video:</span>
+                        <div className="mt-2">
+                          <video 
+                            controls 
+                            className="rounded-md max-h-64 w-full"
+                            src={ad.video_url}
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {ad.post_link && (
+                    <div className="mt-4">
+                      <a 
+                        href={ad.post_link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                      >
+                        View Original Post
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center p-4 text-gray-500 dark:text-gray-400">
+                No related ad information available
+              </div>
+            )}
+            
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -221,16 +419,16 @@ export default function CommentTable({ comments }: CommentTableProps) {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter by Theme</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter by Cluster</label>
           <select
-            value={themeFilter}
-            onChange={e => setThemeFilter(e.target.value)}
+            value={clusterFilter}
+            onChange={e => setClusterFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
-            <option value="">All Themes</option>
-            {themes.map(theme => (
-              <option key={theme} value={theme}>
-                {theme}
+            <option value="">All Clusters</option>
+            {clusters.map(cluster => (
+              <option key={cluster.id} value={cluster["Cluster name"]}>
+                {cluster["Cluster name"]}
               </option>
             ))}
           </select>
@@ -243,13 +441,24 @@ export default function CommentTable({ comments }: CommentTableProps) {
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  <th 
+                    key={header.id} 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    onClick={header.column.getToggleSortingHandler()}
+                  >
                     {header.isPlaceholder
                       ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                      : (
+                        <div className="flex items-center">
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                          <span>
+                            {header.column.getIsSorted() === 'asc' ? ' ↑' : header.column.getIsSorted() === 'desc' ? ' ↓' : ''}
+                          </span>
+                        </div>
+                      )}
                   </th>
                 ))}
               </tr>
@@ -258,7 +467,11 @@ export default function CommentTable({ comments }: CommentTableProps) {
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map(row => (
-                <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr 
+                  key={row.id} 
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                  onClick={() => handleRowClick(row.original)}
+                >
                   {row.getVisibleCells().map(cell => (
                     <td key={cell.id} className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -337,6 +550,9 @@ export default function CommentTable({ comments }: CommentTableProps) {
           Showing {startIndex} - {endIndex} of {totalFilteredRows} comments
         </div>
       </div>
+
+      {/* Modal for showing ad details */}
+      {showModal && <AdDetailModal />}
     </div>
   );
 } 

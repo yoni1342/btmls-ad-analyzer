@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import ThemeToggle from './ThemeToggle';
 import { usePathname } from 'next/navigation';
 
@@ -16,9 +17,15 @@ export default function Navbar() {
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link 
           href="/"
-          className="text-xl font-bold text-blue-600 dark:text-blue-400"
+          className="flex items-center"
         >
-          Data Viz
+          <Image
+            src="/logo.png"
+            alt="Data Visualization Logo"
+            width={40}
+            height={40}
+            className="mr-2"
+          />
         </Link>
         
         <div className="flex items-center gap-6">

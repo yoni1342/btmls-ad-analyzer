@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -17,6 +17,7 @@ import AdTable from '@/app/components/report/AdTable';
 import CommentTable from '@/app/components/report/CommentTable';
 import MediaGrid from '@/app/components/report/MediaGrid';
 import React from 'react';
+import { fetchCommentClusters, fetchClusterCommentMappings } from '@/lib/supabase-service';
 
 // Register ChartJS components
 ChartJS.register(
@@ -47,6 +48,8 @@ interface Comment {
   message: string;
   theme?: string;
   sentiment?: string;
+  "Cluster name"?: string;
+  "Cluster Description"?: string;
 }
 
 interface ReportData {
@@ -60,6 +63,9 @@ type ReportPageProps = {
 
 export default function ReportPage({ data }: ReportPageProps) {
   const [selectedTab, setSelectedTab] = useState('overview');
+  const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
+  const [clusters, setClusters] = useState<any[]>([]);
+  const [clusterComments, setClusterComments] = useState<any[]>([]);
   
   // Process the data
   const ads = data.ads || [];
@@ -73,6 +79,11 @@ export default function ReportPage({ data }: ReportPageProps) {
       angle_type: ad.angle_type
     }))
   );
+  
+  // Filter comments by selected ads if any are selected
+  const filteredComments = selectedAdIds.length > 0
+    ? allComments.filter(comment => selectedAdIds.includes(comment.ad_id))
+    : allComments;
   
   // Extract angle types for pie chart
   const angleTypes = Array.from(new Set(ads.map(ad => ad.angle_type || 'Unknown')));
@@ -129,17 +140,31 @@ export default function ReportPage({ data }: ReportPageProps) {
   };
   
   // Extract themes for bar chart
-  const themes = Array.from(
-    new Set(allComments.map(comment => comment.theme || 'Unknown'))
-  ).slice(0, 5); // Top 5 themes
+  const clustersData = Array.from(
+    new Set(allComments.map(comment => comment["Cluster name"] || comment.theme || 'Unknown'))
+  )
+  .filter(cluster => cluster !== 'Unknown')  // Filter out Unknown values
+  .sort((a, b) => {
+    // Count occurrences of each cluster
+    const countA = allComments.filter(comment => 
+      (comment["Cluster name"] || comment.theme) === a
+    ).length;
+    
+    const countB = allComments.filter(comment => 
+      (comment["Cluster name"] || comment.theme) === b
+    ).length;
+    
+    return countB - countA; // Sort by count descending
+  })
+  .slice(0, 5); // Take top 5
   
-  const themeData = {
-    labels: themes,
+  const clusterData = {
+    labels: clustersData,
     datasets: [
       {
         label: 'Comment Count',
-        data: themes.map(theme => 
-          allComments.filter(comment => (comment.theme || 'Unknown') === theme).length
+        data: clustersData.map(cluster => 
+          allComments.filter(comment => (comment["Cluster name"] || comment.theme || 'Unknown') === cluster).length
         ),
         backgroundColor: 'rgba(54, 162, 235, 0.7)',
         borderColor: 'rgba(54, 162, 235, 1)',
@@ -206,10 +231,24 @@ export default function ReportPage({ data }: ReportPageProps) {
   };
 
   const handleExportComments = () => {
-    const columns = ['comment_id', 'ad_id', 'ad_title', 'message', 'theme', 'sentiment'];
+    const columns = ['comment_id', 'ad_id', 'ad_title', 'message', 'created_time', 'theme', 'sentiment', 'Cluster name', 'Cluster Description'];
     const csv = convertToCSV(allComments, columns);
     downloadCSV(csv, 'comments.csv');
   };
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const clustersData = await fetchCommentClusters();
+        setClusters(clustersData);
+        const clusterCommentsData = await fetchClusterCommentMappings();
+        setClusterComments(clusterCommentsData);
+      } catch (err) {
+        console.error('Error fetching clusters or cluster-comment mappings:', err);
+      }
+    }
+    fetchData();
+  }, []);
 
   return (
     <div className="report-page">
@@ -285,16 +324,26 @@ export default function ReportPage({ data }: ReportPageProps) {
           
           <div className="grid grid-cols-1 gap-6 mb-8">
             <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-              <h3 className="text-lg font-medium mb-4">Top Comment Themes</h3>
+              <h3 className="text-lg font-medium mb-4">Top Comment Clusters/Themes</h3>
               <div className="h-64">
                 <Bar 
-                  data={themeData} 
+                  data={clusterData} 
                   options={{
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                      legend: { display: false }
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          afterLabel: function(context) {
+                            const index = context.dataIndex;
+                            const cluster = clustersData[index];
+                            const comment = allComments.find(c => (c["Cluster name"] || c.theme) === cluster);
+                            return comment?.["Cluster Description"] ? `Description: ${comment["Cluster Description"]}` : '';
+                          }
+                        }
+                      }
                     }
                   }} 
                 />
@@ -324,7 +373,7 @@ export default function ReportPage({ data }: ReportPageProps) {
         <>
           <h2 className="text-xl font-semibold mb-4">All Ads</h2>
           <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-            <AdTable ads={ads} />
+            <AdTable ads={ads} selectedAdIds={selectedAdIds} onSelectedAdIdsChange={setSelectedAdIds} />
           </div>
         </>
       )}
@@ -333,7 +382,7 @@ export default function ReportPage({ data }: ReportPageProps) {
         <>
           <h2 className="text-xl font-semibold mb-4">All Comments</h2>
           <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-            <CommentTable comments={allComments} />
+            <CommentTable comments={filteredComments} ads={ads} clusters={clusters} clusterComments={clusterComments} />
           </div>
         </>
       )}
