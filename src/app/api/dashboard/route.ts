@@ -173,7 +173,7 @@ async function getDefaultDashboardData(
     
     // Sort by comment count and get top 5
     const topAds = adCommentCounts
-      .sort((a, b) => b.commentCount - a.commentCount)
+      .sort((a: { ad: any; commentCount: number }, b: { ad: any; commentCount: number }) => b.commentCount - a.commentCount)
       .slice(0, 5);
     
     // Calculate current period metrics
@@ -454,10 +454,10 @@ async function getDefaultDashboardData(
   },
   tableData: {
         headers: ["Ad Name", "Brand", "Comments", "Positive %", "Negative %"],
-        rows: topAds.map((item, index) => {
-          const adComments = filteredComments.filter(c => c.ad_id === item.ad.ad_id);
-          const positiveCount = adComments.filter(c => c.sentiment === 'positive').length;
-          const negativeCount = adComments.filter(c => c.sentiment === 'negative').length;
+        rows: topAds.map((item: { ad: any; commentCount: number }, index: number) => {
+          const adComments = filteredComments.filter((c: any) => c.ad_id === item.ad.ad_id);
+          const positiveCount = adComments.filter((c: any) => c.sentiment === 'positive').length;
+          const negativeCount = adComments.filter((c: any) => c.sentiment === 'negative').length;
           const positivePercent = adComments.length ? (positiveCount / adComments.length) * 100 : 0;
           const negativePercent = adComments.length ? (negativeCount / adComments.length) * 100 : 0;
           
@@ -475,18 +475,18 @@ async function getDefaultDashboardData(
   },
   pieChartData: {
         labels: sortedThemes.map(([theme]) => theme),
-        values: sortedThemes.map(([_, count]) => count)
+        values: sortedThemes.map(([_, count]: [string, number]) => count)
       },
       // New formatted data for TopPerformingAds component
-      topAds: topAds.map(item => {
-        const adComments = filteredComments.filter(c => c.ad_id === item.ad.ad_id);
-        const positiveCount = adComments.filter(c => c.sentiment === 'positive').length;
-        const negativeCount = adComments.filter(c => c.sentiment === 'negative').length;
+      topAds: topAds.map((item: { ad: any; commentCount: number }) => {
+        const adComments = filteredComments.filter((c: any) => c.ad_id === item.ad.ad_id);
+        const positiveCount = adComments.filter((c: any) => c.sentiment === 'positive').length;
+        const negativeCount = adComments.filter((c: any) => c.sentiment === 'negative').length;
         const neutralCount = adComments.length - positiveCount - negativeCount;
         
-        const positivePercent = adComments.length ? (positiveCount / adComments.length) * 100 : 0;
-        const negativePercent = adComments.length ? (negativeCount / adComments.length) * 100 : 0;
-        const neutralPercent = adComments.length ? (neutralCount / adComments.length) * 100 : 0;
+        const positivePercent = adComments.length ? Math.round((positiveCount / adComments.length) * 100) : 0;
+        const negativePercent = adComments.length ? Math.round((negativeCount / adComments.length) * 100) : 0;
+        const neutralPercent = adComments.length ? Math.round((neutralCount / adComments.length) * 100) : 0;
         
         // Calculate performance score (can be based on various factors)
         const performance = Math.min(
@@ -631,7 +631,7 @@ async function getBrandDashboardData(
     }, [] as { ad: any; commentCount: number }[]);
     
     const topAds = adCommentCounts
-      .sort((a, b) => b.commentCount - a.commentCount)
+      .sort((a: { ad: any; commentCount: number }, b: { ad: any; commentCount: number }) => b.commentCount - a.commentCount)
       .slice(0, 5);
     
     // Calculate current period metrics
@@ -905,10 +905,10 @@ async function getBrandDashboardData(
       },
       tableData: {
         headers: ["Ad Name", "Comments", "Positive %", "Negative %"],
-        rows: topAds.map((item, index) => {
-          const adComments = filteredComments.filter(c => c.ad_id === item.ad.ad_id);
-          const positiveCount = adComments.filter(c => c.sentiment === 'positive').length;
-          const negativeCount = adComments.filter(c => c.sentiment === 'negative').length;
+        rows: topAds.map((item: { ad: any; commentCount: number }, index: number) => {
+          const adComments = filteredComments.filter((c: any) => c.ad_id === item.ad.ad_id);
+          const positiveCount = adComments.filter((c: any) => c.sentiment === 'positive').length;
+          const negativeCount = adComments.filter((c: any) => c.sentiment === 'negative').length;
           const positivePercent = adComments.length ? (positiveCount / adComments.length) * 100 : 0;
           const negativePercent = adComments.length ? (negativeCount / adComments.length) * 100 : 0;
           
@@ -925,12 +925,12 @@ async function getBrandDashboardData(
       },
       pieChartData: {
         labels: sortedThemes.map(([theme]) => theme),
-        values: sortedThemes.map(([_, count]) => count)
+        values: sortedThemes.map(([_, count]: [string, number]) => count)
       },
-      topAds: topAds.map(item => {
-        const adComments = filteredComments.filter(c => c.ad_id === item.ad.ad_id);
-        const positiveCount = adComments.filter(c => c.sentiment === 'positive').length;
-        const negativeCount = adComments.filter(c => c.sentiment === 'negative').length;
+      topAds: topAds.map((item: { ad: any; commentCount: number }) => {
+        const adComments = filteredComments.filter((c: any) => c.ad_id === item.ad.ad_id);
+        const positiveCount = adComments.filter((c: any) => c.sentiment === 'positive').length;
+        const negativeCount = adComments.filter((c: any) => c.sentiment === 'negative').length;
         const neutralCount = adComments.length - positiveCount - negativeCount;
         
         const positivePercentage = adComments.length ? Math.round((positiveCount / adComments.length) * 100) : 0;

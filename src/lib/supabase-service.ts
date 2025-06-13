@@ -44,6 +44,21 @@ export type CommentCluster = {
   comment_id: string;
 };
 
+// Utility to robustly map angle_type from various DB column names
+function getAngleType(ad: any): string {
+  return (
+    ad.angle_type ||
+    ad.angel_type ||
+    ad["Angel Type"] ||
+    ad["Angel"] ||
+    ad["angel_type"] ||
+    ad["angel"] ||
+    ad["angle_type"] ||
+    ad["angle"] ||
+    'Unknown'
+  );
+}
+
 // Fetch all ads
 export async function fetchAds() {
   console.log('Fetching all ads...');
@@ -55,7 +70,7 @@ export async function fetchAds() {
   console.log('Raw ads from Supabase:', data);
   const mapped = (data as any[]).map(ad => ({
     ...ad,
-    angle_type: ad.angel_type || ad["Angel Type"] || ad.angle_type || 'Unknown',
+    angle_type: getAngleType(ad),
   }));
   console.log('Mapped ads with angle_type:', mapped);
   return mapped;
@@ -73,7 +88,7 @@ export async function fetchAdById(adId: string) {
   console.log('Raw ad from Supabase:', data);
   const mapped = {
     ...data,
-    angle_type: data.angel_type || data["Angel Type"] || data.angle_type || 'Unknown',
+    angle_type: getAngleType(data),
   } as Ad;
   console.log('Mapped ad with angle_type:', mapped);
   return mapped;
@@ -90,7 +105,7 @@ export async function fetchAdsByBrand(brand: string) {
   console.log('Raw ads by brand from Supabase:', data);
   const mapped = (data as any[]).map(ad => ({
     ...ad,
-    angle_type: ad.angel_type || ad["Angel Type"] || ad.angle_type || 'Unknown',
+    angle_type: getAngleType(ad),
   }));
   console.log('Mapped ads by brand with angle_type:', mapped);
   return mapped;

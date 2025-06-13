@@ -51,16 +51,6 @@ export default function Navbar() {
               Dashboard
             </Link>
             <Link 
-              href="/ad-analytics"
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                isActive('/ad-analytics') 
-                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              Ad Analytics
-            </Link>
-            <Link 
               href="/reports"
               className={`px-3 py-2 rounded-md text-sm font-medium ${
                 isActive('/reports') || pathname.startsWith('/reports/') 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   createColumnHelper,
   flexRender,
@@ -43,9 +43,9 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
     {
       id: 'select',
       header: () => <input
+        ref={checkboxRef}
         type="checkbox"
         checked={ads.length > 0 && selectedAdIds.length === ads.length}
-        indeterminate={selectedAdIds.length > 0 && selectedAdIds.length < ads.length}
         onChange={e => {
           if (e.target.checked) {
             setSelectedAdIds(ads.map(ad => ad.ad_id));
@@ -166,6 +166,14 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
       },
     },
   });
+
+  const checkboxRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (checkboxRef.current) {
+      checkboxRef.current.indeterminate = selectedAdIds.length > 0 && selectedAdIds.length < ads.length;
+    }
+  }, [selectedAdIds.length, ads.length]);
 
   return (
     <div>

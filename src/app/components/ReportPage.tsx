@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -17,7 +17,6 @@ import AdTable from '@/app/components/report/AdTable';
 import CommentTable from '@/app/components/report/CommentTable';
 import MediaGrid from '@/app/components/report/MediaGrid';
 import React from 'react';
-import { fetchCommentClusters, fetchClusterCommentMappings } from '@/lib/supabase-service';
 
 // Register ChartJS components
 ChartJS.register(
@@ -45,6 +44,9 @@ interface Ad {
 
 interface Comment {
   comment_id: string;
+  ad_id: string;
+  ad_title?: string;
+  angle_type?: string;
   message: string;
   theme?: string;
   sentiment?: string;
@@ -55,6 +57,9 @@ interface Comment {
 interface ReportData {
   brand: string;
   ads: Ad[];
+  comments?: Comment[];
+  clusters?: any[];
+  clusterComments?: any[];
 }
 
 type ReportPageProps = {
@@ -64,22 +69,26 @@ type ReportPageProps = {
 export default function ReportPage({ data }: ReportPageProps) {
   const [selectedTab, setSelectedTab] = useState('overview');
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
-  const [clusters, setClusters] = useState<any[]>([]);
-  const [clusterComments, setClusterComments] = useState<any[]>([]);
-  
-  // Process the data
+
+  // Use comments, clusters, and clusterComments from data if present
   const ads = data.ads || [];
-  
-  // Collect all comments across ads
-  const allComments = ads.flatMap(ad => 
-    (ad.comments || []).map(comment => ({
-      ...comment,
-      ad_id: ad.ad_id,
-      ad_title: ad.ad_title,
-      angle_type: ad.angle_type
-    }))
-  );
-  
+  const allComments = data.comments
+    ? data.comments.map(comment => ({
+        ...comment,
+        ad_title: ads.find(ad => ad.ad_id === comment.ad_id)?.ad_title,
+        angle_type: ads.find(ad => ad.ad_id === comment.ad_id)?.angle_type
+      }))
+    : ads.flatMap(ad =>
+        (ad.comments || []).map(comment => ({
+          ...comment,
+          ad_id: ad.ad_id,
+          ad_title: ad.ad_title,
+          angle_type: ad.angle_type
+        }))
+      );
+  const clusters = data.clusters || [];
+  const clusterComments = data.clusterComments || [];
+
   // Filter comments by selected ads if any are selected
   const filteredComments = selectedAdIds.length > 0
     ? allComments.filter(comment => selectedAdIds.includes(comment.ad_id))
@@ -235,20 +244,6 @@ export default function ReportPage({ data }: ReportPageProps) {
     const csv = convertToCSV(allComments, columns);
     downloadCSV(csv, 'comments.csv');
   };
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const clustersData = await fetchCommentClusters();
-        setClusters(clustersData);
-        const clusterCommentsData = await fetchClusterCommentMappings();
-        setClusterComments(clusterCommentsData);
-      } catch (err) {
-        console.error('Error fetching clusters or cluster-comment mappings:', err);
-      }
-    }
-    fetchData();
-  }, []);
 
   return (
     <div className="report-page">

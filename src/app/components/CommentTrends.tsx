@@ -2,6 +2,7 @@
 
 import { Line, Bar } from 'react-chartjs-2';
 import ChartCard from './ChartCard';
+import type { ChartOptions, AnimationSpec } from 'chart.js';
 
 type TimeSeriesData = {
   labels: string[];
@@ -92,21 +93,21 @@ export default function CommentTrends({
     }),
   };
 
-  // Chart options
-  const options = {
+  // Chart options for line chart
+  const lineOptions: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         display: showLegend,
-        position: 'top' as const,
+        position: 'top',
         labels: {
           usePointStyle: true,
           padding: 20,
         }
       },
       tooltip: {
-        mode: 'index' as const,
+        mode: 'index',
         intersect: false,
         backgroundColor: 'rgba(17, 24, 39, 0.8)',
         padding: 12,
@@ -138,14 +139,65 @@ export default function CommentTrends({
       }
     },
     interaction: {
-      mode: 'index' as const,
+      mode: 'index',
       intersect: false,
     },
     animations: {
       tension: {
         duration: 1000,
         easing: 'linear',
+      } as AnimationSpec<'line'>
+    }
+  };
+
+  // Chart options for bar chart
+  const barOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: showLegend,
+        position: 'top',
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+        }
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+        backgroundColor: 'rgba(17, 24, 39, 0.8)',
+        padding: 12,
+        boxPadding: 6,
+        titleColor: 'rgba(255, 255, 255, 0.95)',
+        bodyColor: 'rgba(255, 255, 255, 0.9)',
       }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(156, 163, 175, 0.1)',
+        },
+        ticks: {
+          precision: 0,
+          color: 'rgba(107, 114, 128, 0.8)',
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          color: 'rgba(107, 114, 128, 0.8)',
+          maxRotation: 45,
+          minRotation: 0,
+        }
+      }
+    },
+    interaction: {
+      mode: 'index',
+      intersect: false,
     }
   };
 
@@ -158,9 +210,9 @@ export default function CommentTrends({
       loading={loading}
     >
       {chartType === 'line' ? (
-        <Line data={lineChartData} options={options} />
+        <Line data={lineChartData} options={lineOptions} />
       ) : (
-        <Bar data={barChartData} options={options} />
+        <Bar data={barChartData} options={barOptions} />
       )}
     </ChartCard>
   );

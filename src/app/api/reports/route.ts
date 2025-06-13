@@ -38,67 +38,158 @@ export async function GET() {
   }
 }
 
-// Create a new report
+// Create or update a report for a brand and ad_ids
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
-    // Validate request body
-    if (!body.title || !body.data) {
-      return NextResponse.json(
-        { error: 'Missing required fields: title and data' },
-        { status: 400 }
-      );
+    console.log('Incoming request body:', JSON.stringify(body, null, 2));
+    if (!Array.isArray(body) || body.length === 0) {
+      return NextResponse.json({ error: 'Request body must be a non-empty array.' }, { status: 400 });
     }
-    
-    // Validate data has the expected structure
-    if (!body.data.brand || !Array.isArray(body.data.ads)) {
-      return NextResponse.json(
-        { error: 'Data must include "brand" and "ads" array' },
-        { status: 400 }
-      );
-    }
-    
-    // Generate a unique ID
-    const reportId = uuidv4();
-    
-    // Create report metadata
-    const reportMetadata = {
-      id: reportId,
-      title: body.title,
-      brand: body.data.brand,
-      created: new Date().toISOString(),
-      adcount: body.data.ads.length
-    };
-    
-    // Insert report metadata into Supabase
-    const { error: metadataError } = await supabase
-      .from('report_metadata')
-      .insert(reportMetadata);
-    
-    if (metadataError) {
-      throw new Error(`Error inserting report metadata: ${metadataError.message}`);
-    }
-    
-    // Insert report data into Supabase
-    const { error: dataError } = await supabase
-      .from('reports')
-      .insert({
+
+    const results = [];
+
+    for (const group of body) {
+      const { brand, ad_ids } = group;
+      if (!brand || !Array.isArray(ad_ids) || ad_ids.length === 0) {
+        results.push({ error: `Missing brand or ad_ids for group: ${JSON.stringify(group)}` });
+        continue;
+      }
+
+      // Fetch ads for this brand and ad_ids
+      const { data: ads, error: adsError } = await supabase
+        .from('Ad per Ad Account')
+        .select('*')
+        .eq('brand', brand)
+        .in('ad_id', ad_ids);
+      if (adsError) {
+        results.push({ error: `Error fetching ads for brand ${brand}: ${adsError.message}` });
+        continue;
+      }
+      console.log(`Fetched ${ads.length} ads for brand ${brand}:`, ads);
+
+      // Fetch comments for these ads
+      const { data: comments, error: commentsError } = await supabase
+        .from('Comments')
+        .select('*')
+        .in('ad_id', ad_ids);
+      if (commentsError) {
+        results.push({ error: `Error fetching comments for brand ${brand}: ${commentsError.message}` });
+        continue;
+      }
+      console.log(`Fetched ${comments.length} comments for brand ${brand}:`, comments);
+
+      // After fetching comments:
+      const commentIds = comments.map((c: any) => c.comment_id);
+      console.log(`Comment IDs for brand ${brand}:`, commentIds);
+
+      // Fetch cluster-comment mappings
+      const { data: clusterComments, error: clusterCommentsError } = await supabase
+        .from('Cluster Comments')
+        .select('*')
+        .in('comment_id', commentIds);
+      if (clusterCommentsError) {
+        results.push({ error: `Error fetching cluster comments for brand ${brand}: ${clusterCommentsError.message}` });
+        continue;
+      }
+      console.log(`Fetched ${clusterComments.length} cluster comments for brand ${brand}:`, clusterComments);
+
+      // Get unique cluster IDs
+      const clusterIds = [...new Set(clusterComments.map((cc: any) => cc.id))];
+      console.log(`Cluster IDs for brand ${brand}:`, clusterIds);
+
+      // Fetch clusters
+      const { data: clusters, error: clustersError } = await supabase
+        .from('Comment Claster')
+        .select('*')
+        .in('id', clusterIds);
+      if (clustersError) {
+        results.push({ error: `Error fetching clusters for brand ${brand}: ${clustersError.message}` });
+        continue;
+      }
+      console.log(`Fetched ${clusters.length} clusters for brand ${brand}:`, clusters);
+
+      // Check if a previous report exists for this brand
+      const { data: prevReports, error: prevError } = await supabase
+        .from('report_metadata')
+        .select('*')
+        .eq('brand', brand)
+        .order('created', { ascending: false })
+        .limit(1);
+      if (prevError) {
+        results.push({ error: `Error checking previous report for brand ${brand}: ${prevError.message}` });
+        continue;
+      }
+
+      let prevData = null;
+      if (prevReports && prevReports.length > 0) {
+        const prevReportId = prevReports[0].id;
+        const { data: prevReportData, error: prevDataError } = await supabase
+          .from('reports')
+          .select('data')
+          .eq('id', prevReportId)
+          .single();
+        if (!prevDataError && prevReportData && prevReportData.data) {
+          prevData = prevReportData.data;
+        }
+      }
+
+      // Merge new data with previous data (if any)
+      // For simplicity, merge ads and comments arrays, deduplicating by ad_id and comment_id
+      const mergedAds = prevData && Array.isArray(prevData.ads)
+        ? [...prevData.ads.filter((a: any) => !ads.some((na: any) => na.ad_id === a.ad_id)), ...ads]
+        : ads;
+      const mergedComments = prevData && Array.isArray(prevData.comments)
+        ? [...prevData.comments.filter((c: any) => !comments.some((nc: any) => nc.comment_id === c.comment_id)), ...comments]
+        : comments;
+
+      // Compose the new report data
+      const reportData = {
+        brand,
+        ads: mergedAds,
+        comments: mergedComments,
+        clusters,
+        clusterComments
+      };
+      console.log(`Final reportData for brand ${brand}:`, reportData);
+
+      // Generate a new report ID
+      const reportId = uuidv4();
+      const now = new Date().toISOString();
+      const reportMetadata = {
         id: reportId,
-        data: body.data
-      });
-    
-    if (dataError) {
-      throw new Error(`Error inserting report data: ${dataError.message}`);
+        title: `${brand} Report`,
+        brand,
+        created: now,
+        adcount: mergedAds.length
+      };
+
+      // Insert new report metadata
+      const { error: metadataError } = await supabase
+        .from('report_metadata')
+        .insert(reportMetadata);
+      if (metadataError) {
+        results.push({ error: `Error inserting report metadata for brand ${brand}: ${metadataError.message}` });
+        continue;
+      }
+
+      // Insert new report data
+      const { error: dataError } = await supabase
+        .from('reports')
+        .insert({ id: reportId, data: reportData });
+      if (dataError) {
+        results.push({ error: `Error inserting report data for brand ${brand}: ${dataError.message}` });
+        continue;
+      }
+
+      // Return the report link
+      const reportUrl = getReportUrl(reportId);
+      results.push({ brand, reportId, reportUrl });
     }
-    
-    // Get the full URL for the report
-    const reportUrl = getReportUrl(reportId);
-    
-    // Return both the report ID and URL
-    return NextResponse.json({ reportId, reportUrl });
+
+    return NextResponse.json({ results });
   } catch (error) {
-    console.error('Error creating report:', error);
-    return NextResponse.json({ error: 'Failed to create report' }, { status: 500 });
+    console.error('Error creating/updating report:', error);
+    return NextResponse.json({ error: 'Failed to create/update report' }, { status: 500 });
   }
 } 
