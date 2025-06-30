@@ -758,9 +758,11 @@ async function getBrandDashboardData(
         if (index >= 0 && index < timeSeriesData.length) {
           timeSeriesData[index]++;
           
-          if (comment.sentiment === 'positive') {
+          // Normalize sentiment value for case-insensitive comparison
+          const sentimentValue = comment.sentiment?.toLowerCase();
+          if (sentimentValue === 'positive') {
             positiveByTime[index]++;
-          } else if (comment.sentiment === 'negative') {
+          } else if (sentimentValue === 'negative') {
             negativeByTime[index]++;
           }
         }

@@ -208,13 +208,17 @@ export default function Dashboard({
   const negativeMetric = data.metrics.find(m => m.id.includes('negative'))?.value || 0;
   const neutralMetric = data.metrics.find(m => m.id.includes('neutral'))?.value || 0;
 
-  // Convert timeSeriesData to the format expected by CommentTrends
+  // Prepare comment trends data, filtering out total comments for brand dashboards
+  let commentDatasets = data.timeSeriesData.datasets;
+  if (dashboardId === 'brand') {
+    commentDatasets = commentDatasets.filter(ds => !ds.name.toLowerCase().includes('total'));
+  }
   const commentTrendsData = {
     labels: data.timeSeriesData.labels,
-    datasets: data.timeSeriesData.datasets.map(dataset => ({
+    datasets: commentDatasets.map(dataset => ({
       name: dataset.name,
       data: dataset.data,
-      color: dataset.name.toLowerCase().includes('positive') 
+      color: dataset.name.toLowerCase().includes('positive')
         ? 'rgb(16, 185, 129)' // green
         : dataset.name.toLowerCase().includes('negative')
           ? 'rgb(239, 68, 68)' // red
