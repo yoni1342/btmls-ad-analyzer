@@ -49,7 +49,9 @@ function filterAdsByDateRange(ads: any[], startDate: Date, endDate: Date) {
 // Helper function to filter comments by sentiment
 function filterCommentsBySentiment(comments: any[], sentiment: string) {
   if (sentiment === 'all') return comments;
-  return comments.filter(comment => comment.sentiment === sentiment);
+  return comments.filter(comment =>
+    comment.sentiment?.toLowerCase() === sentiment.toLowerCase()
+  );
 }
 
 // Helper function to filter by search query
@@ -291,16 +293,8 @@ async function getDefaultDashboardData(
             // Weekly index
             index = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
           } else {
-            // Check if it's likely a lifetime filter (start date before 1980)
-            if (startDate.getFullYear() < 1980) {
-              // Use yearly index for lifetime data
-              const dateYear = date.getFullYear();
-              const startYear = Math.max(1970, startDate.getFullYear());
-              index = dateYear - startYear;
-            } else {
-              // Monthly index for other cases
-              index = date.getMonth();
-            }
+            // Monthly index for other cases (including lifetime)
+            index = date.getMonth();
           }
         } else {
           // Default to monthly index
@@ -311,15 +305,21 @@ async function getDefaultDashboardData(
         if (index >= 0 && index < timeSeriesData.length) {
           timeSeriesData[index]++;
           
-          if (comment.sentiment === 'positive') {
+          const sentimentValue = comment.sentiment?.toLowerCase();
+          if (sentimentValue === 'positive') {
             positiveByTime[index]++;
-          } else if (comment.sentiment === 'negative') {
+          } else if (sentimentValue === 'negative') {
             negativeByTime[index]++;
           }
         }
       }
     });
-    
+
+    // Compute neutral comments per time period
+    const neutralByTime = timeSeriesData.map((totalCount, idx) =>
+      totalCount - positiveByTime[idx] - negativeByTime[idx]
+    );
+
     // Count comments by theme
     const themeCount = filteredComments.reduce((counts, comment) => {
       if (comment.theme) {
@@ -437,19 +437,23 @@ async function getDefaultDashboardData(
         { id: "neutral_sentiment", label: "Neutral Sentiment", value: neutralPct, change: neutralPctChange }
   ],
   timeSeriesData: {
-        labels: timeLabels,
+    labels: timeLabels,
     datasets: [
       {
-            name: "Total Comments",
-            data: timeSeriesData
-          },
-          {
-            name: "Positive Sentiment",
-            data: positiveByTime
-          },
-          {
-            name: "Negative Sentiment",
-            data: negativeByTime
+        name: "Total Comments",
+        data: timeSeriesData
+      },
+      {
+        name: "Positive Sentiment",
+        data: positiveByTime
+      },
+      {
+        name: "Negative Sentiment",
+        data: negativeByTime
+      },
+      {
+        name: "Neutral Sentiment",
+        data: neutralByTime
       }
     ]
   },
@@ -742,16 +746,8 @@ async function getBrandDashboardData(
             // Weekly index
             index = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
           } else {
-            // Check if it's likely a lifetime filter (start date before 1980)
-            if (startDate.getFullYear() < 1980) {
-              // Use yearly index for lifetime data
-              const dateYear = date.getFullYear();
-              const startYear = Math.max(1970, startDate.getFullYear());
-              index = dateYear - startYear;
-            } else {
-              // Monthly index for other cases
-              index = date.getMonth();
-            }
+            // Monthly index for other cases (including lifetime)
+            index = date.getMonth();
           }
         } else {
           // Default to monthly index
@@ -770,7 +766,12 @@ async function getBrandDashboardData(
         }
       }
     });
-    
+
+    // Compute neutral comments per time period
+    const neutralByTime = timeSeriesData.map((totalCount, idx) =>
+      totalCount - positiveByTime[idx] - negativeByTime[idx]
+    );
+
     // Count comments by theme
     const themeCount = filteredComments.reduce((counts, comment) => {
       if (comment.theme) {
@@ -901,6 +902,10 @@ async function getBrandDashboardData(
           {
             name: "Negative Sentiment",
             data: negativeByTime
+          },
+          {
+            name: "Neutral Sentiment",
+            data: neutralByTime
           }
         ]
       },

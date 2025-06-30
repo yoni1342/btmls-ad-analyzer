@@ -125,9 +125,11 @@ export default function SentimentDistribution({
         },
         callbacks: {
           label: (context: any) => {
-            const label = context.label || '';
-            const value = context.raw || 0;
-            const percentage = ((value / total) * 100).toFixed(1) + '%';
+            const idx = context.dataIndex;
+            const chartLabels = context.chart.data.labels as string[];
+            const label = chartLabels[idx] || '';
+            const value = context.parsed ?? 0;
+            const percentage = percentages[idx] ?? '0%';
             return `${label}: ${value} (${percentage})`;
           }
         }
