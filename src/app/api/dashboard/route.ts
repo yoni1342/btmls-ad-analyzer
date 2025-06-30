@@ -56,16 +56,17 @@ function filterCommentsBySentiment(comments: any[], sentiment: string) {
 function filterBySearchQuery(comments: any[], ads: any[], query: string) {
   const lowerQuery = query.toLowerCase();
   
-  // Filter comments that contain the search query in content or theme
-  const filteredComments = comments.filter(comment => 
-    (comment.content && comment.content.toLowerCase().includes(lowerQuery)) ||
+  // Filter comments that contain the search query in message or theme
+  const filteredComments = comments.filter(comment =>
+    (comment.message && comment.message.toLowerCase().includes(lowerQuery)) ||
     (comment.theme && comment.theme.toLowerCase().includes(lowerQuery))
   );
   
-  // Filter ads that contain the search query in name or content
-  const filteredAds = ads.filter(ad => 
+  // Filter ads that contain the search query in name, text, title, or brand
+  const filteredAds = ads.filter(ad =>
     (ad.ad_name && ad.ad_name.toLowerCase().includes(lowerQuery)) ||
-    (ad.ad_creative_body && ad.ad_creative_body.toLowerCase().includes(lowerQuery)) ||
+    (ad.ad_text && ad.ad_text.toLowerCase().includes(lowerQuery)) ||
+    (ad.ad_title && ad.ad_title.toLowerCase().includes(lowerQuery)) ||
     (ad.brand && ad.brand.toLowerCase().includes(lowerQuery))
   );
   
