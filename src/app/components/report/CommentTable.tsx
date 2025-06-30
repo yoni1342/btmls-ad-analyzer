@@ -45,6 +45,12 @@ type CommentTableProps = {
 };
 
 export default function CommentTable({ comments, ads = [], selectedAdIds, clusters = [], clusterComments = [] }: CommentTableProps) {
+  const filteredByAd = useMemo(() => {
+    if (selectedAdIds && selectedAdIds.length > 0) {
+      return comments.filter(c => selectedAdIds.includes(c.ad_id || ''));
+    }
+    return comments;
+  }, [comments, selectedAdIds]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [sentimentFilter, setSentimentFilter] = useState('');
   const [clusterFilter, setClusterFilter] = useState('');
@@ -75,14 +81,15 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
   
   // Compute filtered comments by cluster
   const filteredByCluster = useMemo(() => {
-    if (!clusterFilter) return comments;
+    let data = filteredByAd;
+    if (!clusterFilter) return data;
     // Find the cluster id for the selected cluster name
     const selectedCluster = clusters.find(c => c["Cluster name"] === clusterFilter);
-    if (!selectedCluster) return comments;
+    if (!selectedCluster) return data;
     // Find all comment_ids linked to this cluster id
     const commentIds = clusterComments.filter(cc => cc.id === selectedCluster.id).map(cc => cc.comment_id);
-    return comments.filter(c => commentIds.includes(c.comment_id));
-  }, [comments, clusterFilter, clusters, clusterComments]);
+    return data.filter(c => commentIds.includes(c.comment_id));
+  }, [filteredByAd, clusterFilter, clusters, clusterComments]);
 
   // Extract unique sentiment and theme values for filters
   const sentiments = useMemo(() => 

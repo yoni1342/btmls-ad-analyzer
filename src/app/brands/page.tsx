@@ -31,6 +31,7 @@ function BrandsContent() {
   const [sentiment, setSentiment] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState('overview');
+  const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
   const [brandData, setBrandData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   
@@ -38,8 +39,9 @@ function BrandsContent() {
     setSelectedBrand(brand === '' ? undefined : brand);
     // Reset to overview tab when changing brands
     setSelectedTab('overview');
-    // Clear previous brand data
+    // Clear previous brand data and ad selection
     setBrandData(null);
+    setSelectedAdIds([]);
   };
 
   const handleDateRangeChange = (range: { start: Date; end: Date }) => {
@@ -182,7 +184,11 @@ function BrandsContent() {
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
                     </div>
                   ) : brandData?.ads && brandData.ads.length > 0 ? (
-                    <AdTable ads={brandData.ads} />
+                    <AdTable
+                      ads={brandData.ads}
+                      selectedAdIds={selectedAdIds}
+                      onSelectedAdIdsChange={setSelectedAdIds}
+                    />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       No ads found for this brand.
@@ -201,7 +207,11 @@ function BrandsContent() {
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
                     </div>
                   ) : brandData?.allComments && brandData.allComments.length > 0 ? (
-                    <CommentTable comments={brandData.allComments} ads={brandData.ads || []} />
+                    <CommentTable
+                      comments={brandData.allComments}
+                      ads={brandData.ads || []}
+                      selectedAdIds={selectedAdIds}
+                    />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       No comments found for this brand.
