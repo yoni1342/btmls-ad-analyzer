@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchAds, fetchComments, fetchDashboardMetrics, fetchAdsByBrand, fetchCommentsByBrand } from '@/lib/supabase-service';
+import { fetchCommentClusters, fetchClusterCommentMappings } from '@/lib/supabase-service';
 import { Ad } from '@/app/components/TopPerformingAds';
 
 // Helper function to filter comments by date range
@@ -32,7 +33,8 @@ function filterAdsByDateRange(ads: any[], startDate: Date, endDate: Date) {
   if (isLifetimeFilter) {
     // For lifetime filter, only filter by end date (current date)
     return ads.filter(ad => {
-      if (!ad.created_at) return false;
+      if (!ad.created_at) return false
+
       const adDate = new Date(ad.created_at);
       return adDate <= endDate;
     });
@@ -540,6 +542,9 @@ async function getBrandDashboardData(
     // Fetch brand-specific data
     let ads = await fetchAdsByBrand(brand);
     let comments = await fetchCommentsByBrand(brand);
+    // Fetch cluster data for filtering
+    const fetchedClusters = await fetchCommentClusters();
+    const fetchedClusterComments = await fetchClusterCommentMappings();
     
     console.log(`Initial brand data: ${ads.length} ads, ${comments.length} comments for brand ${brand}`);
     
@@ -966,7 +971,9 @@ async function getBrandDashboardData(
         adCommentData
       },
       ads: filteredAds,
-      allComments
+      allComments,
+      clusters: fetchedClusters,
+      clusterComments: fetchedClusterComments
     };
   } catch (error) {
     console.error(`Error fetching brand dashboard data for ${brand}:`, error);

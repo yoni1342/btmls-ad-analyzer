@@ -61,6 +61,8 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
   });
   const [selectedComment, setSelectedComment] = useState<Comment | null>(null);
   const [showModal, setShowModal] = useState(false);
+
+  /* Removed brandClusters - using clusters directly for filtering */
   
   const toggleExpand = (id: string) => {
     setExpanded(prev => ({
@@ -68,6 +70,32 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
       [id]: !prev[id]
     }));
   };
+
+  /* Removed commentToMetaCluster utility; using clusters directly */
+
+  // Compute filtered comments by selected meta-cluster (case-insensitive)
+  const filteredByCluster = useMemo(() => {
+    if (!clusterFilter) return filteredByAd;
+    const filterLower = clusterFilter.toLowerCase().trim();
+    return filteredByAd.filter(comment =>
+      clusters.some(cluster =>
+        cluster.comment_id === comment.comment_id &&
+        (cluster.meta_cluster?.toLowerCase().trim() || '') === filterLower
+      )
+    );
+  }, [filteredByAd, clusterFilter, clusters]);
+
+  // Compute unique meta-cluster values for filter dropdown
+  const metaClusters = useMemo(() =>
+    Array.from(
+      new Set(
+        clusters
+          .map(c => (c.meta_cluster || '').toString().trim())
+          .filter(mc => mc)
+      )
+    ),
+    [clusters]
+  );
 
   const handleRowClick = (comment: Comment) => {
     setSelectedComment(comment);
@@ -79,23 +107,14 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
     return ads.find(ad => ad.ad_id === comment.ad_id);
   };
   
-  // Compute filtered comments by cluster
-  const filteredByCluster = useMemo(() => {
-    let data = filteredByAd;
-    if (!clusterFilter) return data;
-    // Find the cluster id for the selected cluster name
-    const selectedCluster = clusters.find(c => c["Cluster name"] === clusterFilter);
-    if (!selectedCluster) return data;
-    // Find all comment_ids linked to this cluster id
-    const commentIds = clusterComments.filter(cc => cc.id === selectedCluster.id).map(cc => cc.comment_id);
-    return data.filter(c => commentIds.includes(c.comment_id));
-  }, [filteredByAd, clusterFilter, clusters, clusterComments]);
+  // (previous filteredByCluster removed)
 
   // Extract unique sentiment and theme values for filters
-  const sentiments = useMemo(() => 
+  const sentiments = useMemo(() =>
     Array.from(new Set(comments.map(c => c.sentiment || 'Unknown'))),
     [comments]
   );
+  // (previous metaClusters removed)
 
   const angleTypes = useMemo(() =>
     Array.from(new Set(comments.map(c => c.angle_type || 'Unknown'))),
@@ -212,20 +231,17 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
     }),
   ], [expanded, toggleExpand]);
 
-  // Create properly typed column filters
+  // Create properly typed column filters (exclude clusterFilter to use custom meta-cluster filtering)
   const columnFilters = useMemo(() => {
-    const filters = [];
+    const filters: { id: string; value: string }[] = [];
     if (sentimentFilter) {
       filters.push({ id: 'sentiment', value: sentimentFilter });
-    }
-    if (clusterFilter) {
-      filters.push({ id: 'cluster', value: clusterFilter });
     }
     if (angleTypeFilter) {
       filters.push({ id: 'angle_type', value: angleTypeFilter });
     }
     return filters;
-  }, [sentimentFilter, clusterFilter, angleTypeFilter]);
+  }, [sentimentFilter, angleTypeFilter]);
 
   const table = useReactTable({
     data: filteredByCluster,
@@ -433,9 +449,9 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="">All Clusters</option>
-            {clusters.map(cluster => (
-              <option key={cluster.id} value={cluster["Cluster name"]}>
-                {cluster["Cluster name"]}
+            {metaClusters.map(mc => (
+              <option key={mc} value={mc}>
+                {mc}
               </option>
             ))}
           </select>
