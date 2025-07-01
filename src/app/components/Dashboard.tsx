@@ -281,13 +281,20 @@ export default function Dashboard({
         />
         
         {/* Sentiment Distribution Chart */}
-        <SentimentDistribution
-          positive={positiveMetric}
-          negative={negativeMetric}
-          neutral={neutralMetric}
-          title="Sentiment Distribution"
-          subtitle="Overall sentiment breakdown of all comments"
-        />
+        { /* Pass actual total comments count to doughnut center */ }
+        {(() => {
+          const totalCommentsMetric = data.metrics.find(m => m.id === 'total_comments')?.value || 0;
+          return (
+            <SentimentDistribution
+              positive={positiveMetric}
+              negative={negativeMetric}
+              neutral={neutralMetric}
+              totalCount={totalCommentsMetric}
+              title="Sentiment Distribution"
+              subtitle="Overall sentiment breakdown of all comments"
+            />
+          );
+        })()}
       </div>
       
       {/* Extended Analysis Section - only shown when showExtendedAnalysis is true */}

@@ -193,7 +193,9 @@ async function getDefaultDashboardData(
       c.sentiment && c.sentiment.toLowerCase() === 'negative'
     ).length;
     
-    const totalNeutral = filteredComments.length - totalPositive - totalNegative;
+    const totalNeutral = filteredComments.filter(c =>
+      c.sentiment?.toLowerCase() === 'neutral'
+    ).length;
     
     // Calculate previous period metrics
     const prevTotalComments = previousPeriodComments.length;
@@ -205,7 +207,9 @@ async function getDefaultDashboardData(
       c.sentiment && c.sentiment.toLowerCase() === 'negative'
     ).length;
     
-    const prevTotalNeutral = prevTotalComments - prevTotalPositive - prevTotalNegative;
+    const prevTotalNeutral = previousPeriodComments.filter(c =>
+      c.sentiment?.toLowerCase() === 'neutral'
+    ).length;
     
     // Calculate sentiment percentages
     const totalCommentsNonZero = totalComments || 1; // Avoid division by zero
@@ -656,7 +660,9 @@ async function getBrandDashboardData(
       c.sentiment && c.sentiment.toLowerCase() === 'negative'
     ).length;
     
-    const totalNeutral = filteredComments.length - totalPositive - totalNegative;
+    const totalNeutral = filteredComments.filter(c =>
+      c.sentiment?.toLowerCase() === 'neutral'
+    ).length;
     
     // Calculate previous period metrics
     const prevTotalComments = previousPeriodComments.length;
@@ -668,7 +674,9 @@ async function getBrandDashboardData(
       c.sentiment && c.sentiment.toLowerCase() === 'negative'
     ).length;
     
-    const prevTotalNeutral = prevTotalComments - prevTotalPositive - prevTotalNegative;
+    const prevTotalNeutral = previousPeriodComments.filter(c =>
+      c.sentiment?.toLowerCase() === 'neutral'
+    ).length;
     
     // Calculate sentiment percentages
     const totalCommentsNonZero = totalComments || 1; // Avoid division by zero
@@ -1009,13 +1017,13 @@ export async function GET(request: Request) {
     // Fetch dashboard data based on ID
     let dashboardData;
     
-    if (dashboardId === 'default') {
-      dashboardData = await getDefaultDashboardData(startDate, endDate, sentiment, searchQuery);
-      console.log('Total Ads:', dashboardData.metrics[0].value);
-      console.log('Total Comments:', dashboardData.metrics[1].value);
-    } else if (brand) {
+    if (brand) {
       dashboardData = await getBrandDashboardData(brand, startDate, endDate, sentiment, searchQuery);
       console.log('Brand:', brand);
+      console.log('Total Ads:', dashboardData.metrics[0].value);
+      console.log('Total Comments:', dashboardData.metrics[1].value);
+    } else if (dashboardId === 'default') {
+      dashboardData = await getDefaultDashboardData(startDate, endDate, sentiment, searchQuery);
       console.log('Total Ads:', dashboardData.metrics[0].value);
       console.log('Total Comments:', dashboardData.metrics[1].value);
     } else {
