@@ -10,6 +10,7 @@ export type Ad = {
   ad_text: string;
   ad_title: string;
   image_url: string;
+  image: string;
   video_url: string;
   post_link: string;
   created_at: string;
@@ -80,7 +81,7 @@ export async function fetchAds() {
 export async function fetchAdById(adId: string) {
   const { data, error } = await supabase
     .from('Ad per Ad Account')
-    .select('*')
+    .select('*, image')
     .eq('ad_id', adId)
     .single();
   
@@ -158,14 +159,15 @@ export async function fetchCommentClusters() {
 // Fetch unique brands
 export async function fetchBrands() {
   const { data, error } = await supabase
-    .from('Ad per Ad Account')
+    .from<any, { brand: string }>('Ad per Ad Account')
     .select('brand')
     .not('brand', 'is', null);
+  console.log('Raw brand data from Supabase:', data);
   
   if (error) throw error;
   
   // Extract unique brands
-  const uniqueBrands = [...new Set(data.map(item => item.brand))];
+  const uniqueBrands = [...new Set((data ?? []).map((item: { brand: string }) => item.brand))];
   return uniqueBrands;
 }
 
@@ -187,18 +189,19 @@ export async function fetchDashboardMetrics() {
   
   // Fetch sentiment distribution
   const { data: sentimentData, error: sentimentError } = await supabase
-    .from('Comments')
+    .from<any, { sentiment: string | null }>('Comments')
     .select('sentiment')
     .not('sentiment', 'is', null);
+  console.log('Raw sentimentData from Supabase:', sentimentData);
   
   if (sentimentError) throw sentimentError;
   
   // Calculate sentiment percentages
-  const sentiments = sentimentData.map(item => item.sentiment?.toLowerCase());
+  const sentiments: string[] = (sentimentData ?? []).map((item: { sentiment: string | null }) => item.sentiment?.toLowerCase() ?? '');
   const sentimentCounts = {
-    positive: sentiments.filter(s => s === 'positive').length,
-    negative: sentiments.filter(s => s === 'negative').length,
-    neutral: sentiments.length - sentiments.filter(s => s === 'positive' || s === 'negative').length,
+    positive: sentiments.filter((s: string) => s === 'positive').length,
+    negative: sentiments.filter((s: string) => s === 'negative').length,
+    neutral: sentiments.length - sentiments.filter((s: string) => s === 'positive' || s === 'negative').length,
   };
   
   const totalSentiments = sentiments.length || 1; // Avoid division by zero

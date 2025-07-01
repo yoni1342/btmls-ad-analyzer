@@ -5,6 +5,7 @@ import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useState, useEffect } from 'react';
 import BrandSelector from '../components/BrandSelector';
 import FilterBar from '../components/FilterBar';
+import DateRangePicker from '../components/DateRangePicker';
 import Dashboard from '../components/Dashboard';
 import AdTable from '../components/report/AdTable';
 import CommentTable from '../components/report/CommentTable';
@@ -31,15 +32,19 @@ function BrandsContent() {
   const [sentiment, setSentiment] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState('overview');
+  const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
   const [brandData, setBrandData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportRange, setExportRange] = useState<{ start: Date; end: Date }>(dateRange);
   
   const handleSelectBrand = (brand: string) => {
     setSelectedBrand(brand === '' ? undefined : brand);
     // Reset to overview tab when changing brands
     setSelectedTab('overview');
-    // Clear previous brand data
+    // Clear previous brand data and ad selection
     setBrandData(null);
+    setSelectedAdIds([]);
   };
 
   const handleDateRangeChange = (range: { start: Date; end: Date }) => {
@@ -52,6 +57,21 @@ function BrandsContent() {
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
+  };
+
+  const doExport = (range: { start: Date; end: Date }) => {
+    if (!selectedBrand) return;
+    let url = `/api/brands/export?brand=${encodeURIComponent(selectedBrand)}`;
+    if (range) {
+      url += `&startDate=${range.start.toISOString()}&endDate=${range.end.toISOString()}`;
+    }
+    if (sentiment && sentiment !== 'all') {
+      url += `&sentiment=${encodeURIComponent(sentiment)}`;
+    }
+    if (searchQuery) {
+      url += `&search=${encodeURIComponent(searchQuery)}`;
+    }
+    window.open(url, '_blank');
   };
   
   // Fetch brand data for tables when tab changes or when filters change
@@ -97,10 +117,41 @@ function BrandsContent() {
   }, [selectedBrand, selectedTab, dateRange, sentiment, searchQuery]);
   
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6">
-        {selectedBrand ? `${selectedBrand} Analytics` : 'Brand Analytics'}
-      </h1>
+    <div className="container mx-auto py-8 px-4 relative">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">
+          {selectedBrand ? `${selectedBrand} Analytics` : 'Brand Analytics'}
+        </h1>
+        {selectedBrand && (
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+            >
+              Export
+            </button>
+            {showExportMenu && (
+              <div className="fixed inset-0 flex items-center justify-center z-50" onClick={() => setShowExportMenu(false)}>
+                  <div
+                    className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-gray-600 rounded p-8 shadow-lg w-full max-w-3xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <DateRangePicker
+                      initialRange={{ startDate: exportRange.start, endDate: exportRange.end }}
+                      onChange={(range) => setExportRange({ start: range.startDate, end: range.endDate })}
+                    />
+                    <button
+                      onClick={() => { doExport(exportRange); setShowExportMenu(false); }}
+                      className="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                    >
+                      Download
+                    </button>
+                  </div>
+                </div>
+            )}
+          </div>
+        )}
+      </div>
       
       {!selectedBrand ? (
         <>
@@ -115,12 +166,14 @@ function BrandsContent() {
         </>
       ) : (
         <>
-          <FilterBar 
-            onDateRangeChange={handleDateRangeChange}
-            onSentimentChange={handleSentimentChange}
-            onSearchChange={handleSearchChange}
-            showSearch={true}
-          />
+          <div className="mb-6">
+            <FilterBar
+              onDateRangeChange={handleDateRangeChange}
+              onSentimentChange={handleSentimentChange}
+              onSearchChange={handleSearchChange}
+              showSearch={selectedTab !== 'overview'}
+            />
+          </div>
           <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">{selectedBrand} Overview</h2>
@@ -182,7 +235,11 @@ function BrandsContent() {
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
                     </div>
                   ) : brandData?.ads && brandData.ads.length > 0 ? (
-                    <AdTable ads={brandData.ads} />
+                    <AdTable
+                      ads={brandData.ads}
+                      selectedAdIds={selectedAdIds}
+                      onSelectedAdIdsChange={setSelectedAdIds}
+                    />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       No ads found for this brand.
@@ -201,7 +258,12 @@ function BrandsContent() {
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
                     </div>
                   ) : brandData?.allComments && brandData.allComments.length > 0 ? (
-                    <CommentTable comments={brandData.allComments} ads={brandData.ads || []} />
+                    <CommentTable
+                      comments={brandData.allComments}
+                      ads={brandData.ads || []}
+                      selectedAdIds={selectedAdIds}
+                      clusters={brandData.clusters || []}
+                    />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       No comments found for this brand.

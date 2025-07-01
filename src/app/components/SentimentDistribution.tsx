@@ -11,6 +11,7 @@ type SentimentDistributionProps = {
   positive: number;
   negative: number;
   neutral: number;
+  totalCount?: number;
   visualizationType?: 'pie' | 'doughnut' | 'horizontal-bars';
   title?: string;
   subtitle?: string;
@@ -22,6 +23,7 @@ export default function SentimentDistribution({
   positive,
   negative,
   neutral,
+  totalCount,
   visualizationType = 'doughnut',
   title = 'Sentiment Distribution',
   subtitle = 'Breakdown of positive, negative, and neutral sentiment',
@@ -53,8 +55,12 @@ export default function SentimentDistribution({
   };
 
   const labels = ['Positive', 'Negative', 'Neutral'];
-  const data = [positive, negative, neutral];
-  const total = positive + negative + neutral || 1; // Avoid division by zero
+  // Use raw values or percentages appropriately: if sum of inputs <=100, treat as percentage inputs
+  const values = [positive, negative, neutral];
+  const sumValues = values.reduce((sum, val) => sum + val, 0);
+  // If inputs sum to zero, avoid division by zero; if sum <=100 treat total as 100 for percentage inputs
+  const total = sumValues === 0 ? 1 : (sumValues <= 100 ? 100 : sumValues);
+  const data = values;
   const percentages = data.map(value => ((value / total) * 100).toFixed(1) + '%');
 
   // Chart data
@@ -125,9 +131,11 @@ export default function SentimentDistribution({
         },
         callbacks: {
           label: (context: any) => {
-            const label = context.label || '';
-            const value = context.raw || 0;
-            const percentage = ((value / total) * 100).toFixed(1) + '%';
+            const idx = context.dataIndex;
+            const chartLabels = context.chart.data.labels as string[];
+            const label = chartLabels[idx] || '';
+            const value = context.parsed ?? 0;
+            const percentage = percentages[idx] ?? '0%';
             return `${label}: ${value} (${percentage})`;
           }
         }
@@ -198,7 +206,7 @@ export default function SentimentDistribution({
         {visualizationType === 'doughnut' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <div className="text-3xl font-bold">
-              {data.reduce((sum, val) => sum + val, 0)}
+              {totalCount ?? data.reduce((sum, val) => sum + val, 0)}
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">Total</div>
           </div>

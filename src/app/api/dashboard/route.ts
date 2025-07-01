@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchAds, fetchComments, fetchDashboardMetrics, fetchAdsByBrand, fetchCommentsByBrand } from '@/lib/supabase-service';
+import { fetchCommentClusters, fetchClusterCommentMappings } from '@/lib/supabase-service';
 import { Ad } from '@/app/components/TopPerformingAds';
 
 // Helper function to filter comments by date range
@@ -32,7 +33,8 @@ function filterAdsByDateRange(ads: any[], startDate: Date, endDate: Date) {
   if (isLifetimeFilter) {
     // For lifetime filter, only filter by end date (current date)
     return ads.filter(ad => {
-      if (!ad.created_at) return false;
+      if (!ad.created_at) return false
+
       const adDate = new Date(ad.created_at);
       return adDate <= endDate;
     });
@@ -49,23 +51,26 @@ function filterAdsByDateRange(ads: any[], startDate: Date, endDate: Date) {
 // Helper function to filter comments by sentiment
 function filterCommentsBySentiment(comments: any[], sentiment: string) {
   if (sentiment === 'all') return comments;
-  return comments.filter(comment => comment.sentiment === sentiment);
+  return comments.filter(comment =>
+    comment.sentiment?.toLowerCase() === sentiment.toLowerCase()
+  );
 }
 
 // Helper function to filter by search query
 function filterBySearchQuery(comments: any[], ads: any[], query: string) {
   const lowerQuery = query.toLowerCase();
   
-  // Filter comments that contain the search query in content or theme
-  const filteredComments = comments.filter(comment => 
-    (comment.content && comment.content.toLowerCase().includes(lowerQuery)) ||
+  // Filter comments that contain the search query in message or theme
+  const filteredComments = comments.filter(comment =>
+    (comment.message && comment.message.toLowerCase().includes(lowerQuery)) ||
     (comment.theme && comment.theme.toLowerCase().includes(lowerQuery))
   );
   
-  // Filter ads that contain the search query in name or content
-  const filteredAds = ads.filter(ad => 
+  // Filter ads that contain the search query in name, text, title, or brand
+  const filteredAds = ads.filter(ad =>
     (ad.ad_name && ad.ad_name.toLowerCase().includes(lowerQuery)) ||
-    (ad.ad_creative_body && ad.ad_creative_body.toLowerCase().includes(lowerQuery)) ||
+    (ad.ad_text && ad.ad_text.toLowerCase().includes(lowerQuery)) ||
+    (ad.ad_title && ad.ad_title.toLowerCase().includes(lowerQuery)) ||
     (ad.brand && ad.brand.toLowerCase().includes(lowerQuery))
   );
   
@@ -188,7 +193,9 @@ async function getDefaultDashboardData(
       c.sentiment && c.sentiment.toLowerCase() === 'negative'
     ).length;
     
-    const totalNeutral = filteredComments.length - totalPositive - totalNegative;
+    const totalNeutral = filteredComments.filter(c =>
+      c.sentiment?.toLowerCase() === 'neutral'
+    ).length;
     
     // Calculate previous period metrics
     const prevTotalComments = previousPeriodComments.length;
@@ -200,7 +207,9 @@ async function getDefaultDashboardData(
       c.sentiment && c.sentiment.toLowerCase() === 'negative'
     ).length;
     
-    const prevTotalNeutral = prevTotalComments - prevTotalPositive - prevTotalNegative;
+    const prevTotalNeutral = previousPeriodComments.filter(c =>
+      c.sentiment?.toLowerCase() === 'neutral'
+    ).length;
     
     // Calculate sentiment percentages
     const totalCommentsNonZero = totalComments || 1; // Avoid division by zero
@@ -290,16 +299,8 @@ async function getDefaultDashboardData(
             // Weekly index
             index = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
           } else {
-            // Check if it's likely a lifetime filter (start date before 1980)
-            if (startDate.getFullYear() < 1980) {
-              // Use yearly index for lifetime data
-              const dateYear = date.getFullYear();
-              const startYear = Math.max(1970, startDate.getFullYear());
-              index = dateYear - startYear;
-            } else {
-              // Monthly index for other cases
-              index = date.getMonth();
-            }
+            // Monthly index for other cases (including lifetime)
+            index = date.getMonth();
           }
         } else {
           // Default to monthly index
@@ -310,15 +311,21 @@ async function getDefaultDashboardData(
         if (index >= 0 && index < timeSeriesData.length) {
           timeSeriesData[index]++;
           
-          if (comment.sentiment === 'positive') {
+          const sentimentValue = comment.sentiment?.toLowerCase();
+          if (sentimentValue === 'positive') {
             positiveByTime[index]++;
-          } else if (comment.sentiment === 'negative') {
+          } else if (sentimentValue === 'negative') {
             negativeByTime[index]++;
           }
         }
       }
     });
-    
+
+    // Compute neutral comments per time period
+    const neutralByTime = timeSeriesData.map((totalCount, idx) =>
+      totalCount - positiveByTime[idx] - negativeByTime[idx]
+    );
+
     // Count comments by theme
     const themeCount = filteredComments.reduce((counts, comment) => {
       if (comment.theme) {
@@ -436,19 +443,23 @@ async function getDefaultDashboardData(
         { id: "neutral_sentiment", label: "Neutral Sentiment", value: neutralPct, change: neutralPctChange }
   ],
   timeSeriesData: {
-        labels: timeLabels,
+    labels: timeLabels,
     datasets: [
       {
-            name: "Total Comments",
-            data: timeSeriesData
-          },
-          {
-            name: "Positive Sentiment",
-            data: positiveByTime
-          },
-          {
-            name: "Negative Sentiment",
-            data: negativeByTime
+        name: "Total Comments",
+        data: timeSeriesData
+      },
+      {
+        name: "Positive Sentiment",
+        data: positiveByTime
+      },
+      {
+        name: "Negative Sentiment",
+        data: negativeByTime
+      },
+      {
+        name: "Neutral Sentiment",
+        data: neutralByTime
       }
     ]
   },
@@ -535,6 +546,9 @@ async function getBrandDashboardData(
     // Fetch brand-specific data
     let ads = await fetchAdsByBrand(brand);
     let comments = await fetchCommentsByBrand(brand);
+    // Fetch cluster data for filtering
+    const fetchedClusters = await fetchCommentClusters();
+    const fetchedClusterComments = await fetchClusterCommentMappings();
     
     console.log(`Initial brand data: ${ads.length} ads, ${comments.length} comments for brand ${brand}`);
     
@@ -646,7 +660,9 @@ async function getBrandDashboardData(
       c.sentiment && c.sentiment.toLowerCase() === 'negative'
     ).length;
     
-    const totalNeutral = filteredComments.length - totalPositive - totalNegative;
+    const totalNeutral = filteredComments.filter(c =>
+      c.sentiment?.toLowerCase() === 'neutral'
+    ).length;
     
     // Calculate previous period metrics
     const prevTotalComments = previousPeriodComments.length;
@@ -658,7 +674,9 @@ async function getBrandDashboardData(
       c.sentiment && c.sentiment.toLowerCase() === 'negative'
     ).length;
     
-    const prevTotalNeutral = prevTotalComments - prevTotalPositive - prevTotalNegative;
+    const prevTotalNeutral = previousPeriodComments.filter(c =>
+      c.sentiment?.toLowerCase() === 'neutral'
+    ).length;
     
     // Calculate sentiment percentages
     const totalCommentsNonZero = totalComments || 1; // Avoid division by zero
@@ -741,16 +759,8 @@ async function getBrandDashboardData(
             // Weekly index
             index = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
           } else {
-            // Check if it's likely a lifetime filter (start date before 1980)
-            if (startDate.getFullYear() < 1980) {
-              // Use yearly index for lifetime data
-              const dateYear = date.getFullYear();
-              const startYear = Math.max(1970, startDate.getFullYear());
-              index = dateYear - startYear;
-            } else {
-              // Monthly index for other cases
-              index = date.getMonth();
-            }
+            // Monthly index for other cases (including lifetime)
+            index = date.getMonth();
           }
         } else {
           // Default to monthly index
@@ -761,15 +771,22 @@ async function getBrandDashboardData(
         if (index >= 0 && index < timeSeriesData.length) {
           timeSeriesData[index]++;
           
-          if (comment.sentiment === 'positive') {
+          // Normalize sentiment value for case-insensitive comparison
+          const sentimentValue = comment.sentiment?.toLowerCase();
+          if (sentimentValue === 'positive') {
             positiveByTime[index]++;
-          } else if (comment.sentiment === 'negative') {
+          } else if (sentimentValue === 'negative') {
             negativeByTime[index]++;
           }
         }
       }
     });
-    
+
+    // Compute neutral comments per time period
+    const neutralByTime = timeSeriesData.map((totalCount, idx) =>
+      totalCount - positiveByTime[idx] - negativeByTime[idx]
+    );
+
     // Count comments by theme
     const themeCount = filteredComments.reduce((counts, comment) => {
       if (comment.theme) {
@@ -900,6 +917,10 @@ async function getBrandDashboardData(
           {
             name: "Negative Sentiment",
             data: negativeByTime
+          },
+          {
+            name: "Neutral Sentiment",
+            data: neutralByTime
           }
         ]
       },
@@ -958,7 +979,9 @@ async function getBrandDashboardData(
         adCommentData
       },
       ads: filteredAds,
-      allComments
+      allComments,
+      clusters: fetchedClusters,
+      clusterComments: fetchedClusterComments
     };
   } catch (error) {
     console.error(`Error fetching brand dashboard data for ${brand}:`, error);
@@ -994,13 +1017,13 @@ export async function GET(request: Request) {
     // Fetch dashboard data based on ID
     let dashboardData;
     
-    if (dashboardId === 'default') {
-      dashboardData = await getDefaultDashboardData(startDate, endDate, sentiment, searchQuery);
-      console.log('Total Ads:', dashboardData.metrics[0].value);
-      console.log('Total Comments:', dashboardData.metrics[1].value);
-    } else if (brand) {
+    if (brand) {
       dashboardData = await getBrandDashboardData(brand, startDate, endDate, sentiment, searchQuery);
       console.log('Brand:', brand);
+      console.log('Total Ads:', dashboardData.metrics[0].value);
+      console.log('Total Comments:', dashboardData.metrics[1].value);
+    } else if (dashboardId === 'default') {
+      dashboardData = await getDefaultDashboardData(startDate, endDate, sentiment, searchQuery);
       console.log('Total Ads:', dashboardData.metrics[0].value);
       console.log('Total Comments:', dashboardData.metrics[1].value);
     } else {

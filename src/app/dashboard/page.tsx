@@ -83,10 +83,11 @@ function DashboardContent() {
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="md:col-span-3">
-          <FilterBar 
+          <FilterBar
             onDateRangeChange={handleDateRangeChange}
             onSentimentChange={handleSentimentChange}
             onSearchChange={handleSearchChange}
+            showSearch={false}
           />
         </div>
         <div className="md:col-span-1">

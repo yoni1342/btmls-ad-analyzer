@@ -33,6 +33,13 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+#context files
+project_doc.md
+database_schema.sql
+filtering_issues_analysis.md
+immediate_fixes_implementation_guide.md
+
+
 # vercel
 .vercel
 
