@@ -117,11 +117,11 @@ function BrandsContent() {
         </>
       ) : (
         <>
-          <FilterBar 
+          <FilterBar
             onDateRangeChange={handleDateRangeChange}
             onSentimentChange={handleSentimentChange}
             onSearchChange={handleSearchChange}
-            showSearch={true}
+            showSearch={selectedTab !== 'overview'}
           />
           <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg mb-6">
             <div className="flex items-center justify-between mb-4">
