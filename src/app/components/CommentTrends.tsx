@@ -43,22 +43,49 @@ export default function CommentTrends({
     { main: 'rgb(139, 92, 246)', background: 'rgba(139, 92, 246, 0.1)' }, // purple
   ];
 
+  // Calculate total comments per time period for percent sentiment
+  const totalData = data.datasets.find(ds => ds.name.toLowerCase().includes('total'))?.data || [];
   // Line chart data
   const lineChartData = {
     labels: data.labels,
     datasets: data.datasets.map((dataset, index) => {
+      // Determine data values and axis based on dataset type
+      let mappedData = dataset.data;
+      let yAxisID: 'y' | 'y1' = 'y';
+      if (dataset.name.toLowerCase().includes('sentiment')) {
+        mappedData = dataset.data.map((val, idx) => {
+          const total = totalData[idx] || 1;
+          return (val / total) * 100;
+        });
+        yAxisID = 'y1';
+      }
       const colorIndex = index % defaultColors.length;
-      const color = dataset.color ? 
-        { main: dataset.color, background: `${dataset.color}33` } : // Add 20% opacity
-        defaultColors[colorIndex];
+      let colorMain: string;
+      let colorBackground: string;
+      if (dataset.color) {
+        if (/^rgb\(/.test(dataset.color)) {
+          const rgbValues = dataset.color.match(/\d+/g) || [];
+          const [r, g, b] = rgbValues;
+          colorMain = dataset.color;
+          colorBackground = `rgba(${r}, ${g}, ${b}, 0.2)`;
+        } else {
+          colorMain = dataset.color;
+          colorBackground = `${dataset.color}33`;
+        }
+      } else {
+        colorMain = defaultColors[colorIndex].main;
+        colorBackground = defaultColors[colorIndex].background;
+      }
       
       return {
         label: dataset.name,
-        data: dataset.data,
-        borderColor: color.main,
-        backgroundColor: color.background,
+        rawData: dataset.data,
+        data: mappedData,
+        yAxisID,
+        borderColor: colorMain,
+        backgroundColor: colorBackground,
         borderWidth: 2,
-        pointBackgroundColor: color.main,
+        pointBackgroundColor: colorMain,
         pointBorderColor: '#fff',
         pointRadius: 4,
         pointHoverRadius: 6,
@@ -73,21 +100,31 @@ export default function CommentTrends({
     labels: data.labels,
     datasets: data.datasets.map((dataset, index) => {
       const colorIndex = index % defaultColors.length;
-      const color = dataset.color ? 
-        { main: dataset.color, background: `${dataset.color}CC` } : // Add 80% opacity
-        { 
-          main: defaultColors[colorIndex].main, 
-          background: defaultColors[colorIndex].main.replace('rgb', 'rgba').replace(')', ', 0.8)')
-        };
+      let barMain: string;
+      let barBackground: string;
+      if (dataset.color) {
+        if (/^rgb\(/.test(dataset.color)) {
+          const rgbVals = dataset.color.match(/\d+/g) || [];
+          const [r, g, b] = rgbVals;
+          barMain = dataset.color;
+          barBackground = `rgba(${r}, ${g}, ${b}, 0.8)`;
+        } else {
+          barMain = dataset.color;
+          barBackground = `${dataset.color}CC`;
+        }
+      } else {
+        barMain = defaultColors[colorIndex].main;
+        barBackground = defaultColors[colorIndex].main.replace('rgb', 'rgba').replace(')', ', 0.8)');
+      }
       
       return {
         label: dataset.name,
         data: dataset.data,
-        backgroundColor: color.background,
-        borderColor: color.main,
+        backgroundColor: barBackground,
+        borderColor: barMain,
         borderWidth: 1,
         borderRadius: 4,
-        hoverBackgroundColor: color.main,
+        hoverBackgroundColor: barMain,
         ...(chartType === 'stacked-bar' ? { stack: 'stack1' } : {})
       };
     }),
@@ -114,6 +151,18 @@ export default function CommentTrends({
         boxPadding: 6,
         titleColor: 'rgba(255, 255, 255, 0.95)',
         bodyColor: 'rgba(255, 255, 255, 0.9)',
+        callbacks: {
+          label: (ctx: any) => {
+            const label = ctx.dataset.label || '';
+            if (ctx.dataset.yAxisID === 'y1') {
+              // Display exact comment count for sentiment datasets
+              const raw = ctx.dataset.rawData?.[ctx.dataIndex] ?? 0;
+              return `${label}: ${raw}`;
+            }
+            const val = ctx.parsed.y ?? 0;
+            return `${label}: ${Math.round(val)}`;
+          }
+        }
       }
     },
     scales: {
@@ -124,6 +173,21 @@ export default function CommentTrends({
         },
         ticks: {
           precision: 0,
+          color: 'rgba(107, 114, 128, 0.8)',
+        }
+      },
+      y1: {
+        type: 'linear' as const,
+        position: 'right' as const,
+        beginAtZero: true,
+        grid: {
+          display: false
+        },
+        ticks: {
+          callback: (tickValue: string | number, _index: number, _ticks: any) => {
+            const v = typeof tickValue === 'number' ? tickValue : parseFloat(tickValue);
+            return `${v.toFixed(1)}%`;
+          },
           color: 'rgba(107, 114, 128, 0.8)',
         }
       },
