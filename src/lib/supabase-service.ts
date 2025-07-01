@@ -10,6 +10,7 @@ export type Ad = {
   ad_text: string;
   ad_title: string;
   image_url: string;
+  image: string;
   video_url: string;
   post_link: string;
   created_at: string;
@@ -80,7 +81,7 @@ export async function fetchAds() {
 export async function fetchAdById(adId: string) {
   const { data, error } = await supabase
     .from('Ad per Ad Account')
-    .select('*')
+    .select('*, image')
     .eq('ad_id', adId)
     .single();
   

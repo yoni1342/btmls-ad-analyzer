@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   createColumnHelper,
   flexRender,
@@ -36,7 +37,8 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
 
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
-
+  const router = useRouter();
+  
   const columnHelper = createColumnHelper<Ad>();
 
   const columns = [
@@ -199,15 +201,8 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
             {table.getRowModel().rows.map(row => (
               <tr
                 key={row.id}
-                className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${selectedAdIds.includes(row.original.ad_id) ? 'bg-blue-50 dark:bg-blue-900' : ''}`}
-                onClick={() => {
-                  const id = row.original.ad_id;
-                  if (selectedAdIds.includes(id)) {
-                    setSelectedAdIds(selectedAdIds.filter(selectedId => selectedId !== id));
-                  } else {
-                    setSelectedAdIds([...selectedAdIds, id]);
-                  }
-                }}
+                className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${selectedAdIds.includes(row.original.ad_id) ? 'bg-blue-50 dark:bg-blue-900' : ''}`}
+                							onClick={() => router.push(`/brands/ad/${row.original.ad_id}`)}
               >
                 {row.getVisibleCells().map(cell => (
                   <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
