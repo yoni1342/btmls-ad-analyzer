@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
       // Fetch ads for this brand and ad_ids
       const { data: ads, error: adsError } = await supabase
-        .from('Ad per Ad Account')
+        .from('ad_per_ad_account')
         .select('*')
         .eq('brand', brand)
         .in('ad_id', ad_ids);
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
       // Fetch comments for these ads
       const { data: comments, error: commentsError } = await supabase
-        .from('Comments')
+        .from('comments')
         .select('*')
         .in('ad_id', ad_ids);
       if (commentsError) {
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
 
       // Fetch cluster-comment mappings
       const { data: clusterComments, error: clusterCommentsError } = await supabase
-        .from('Cluster Comments')
+        .from('cluster_comments')
         .select('*')
         .in('comment_id', commentIds);
       if (clusterCommentsError) {
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
 
       // Fetch clusters
       const { data: clusters, error: clustersError } = await supabase
-        .from('Comment Claster')
+        .from('comment_cluster')
         .select('*')
         .in('id', clusterIds);
       if (clustersError) {
