@@ -38,6 +38,7 @@ project_doc.md
 database_schema.sql
 filtering_issues_analysis.md
 immediate_fixes_implementation_guide.md
+seed.sql
 
 
 # vercel
