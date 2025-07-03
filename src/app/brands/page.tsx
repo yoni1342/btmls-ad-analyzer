@@ -236,7 +236,7 @@ function BrandsContent() {
                     </div>
                   ) : brandData?.ads && brandData.ads.length > 0 ? (
                     <AdTable
-                      ads={brandData.ads}
+                      ads={brandData.ads.map((ad: any) => ({ ...ad, comments: brandData.allComments.filter((comment: any) => comment.ad_id === ad.ad_id) }))}
                       selectedAdIds={selectedAdIds}
                       onSelectedAdIdsChange={setSelectedAdIds}
                     />
@@ -282,7 +282,7 @@ function BrandsContent() {
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
                     </div>
                   ) : brandData?.ads && brandData.ads.length > 0 ? (
-                    <MediaGrid ads={brandData.ads} />
+                    <MediaGrid ads={brandData.ads.map((ad: any) => ({ ...ad, comments: brandData.allComments.filter((comment: any) => comment.ad_id === ad.ad_id) }))} />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       No media found for this brand.
