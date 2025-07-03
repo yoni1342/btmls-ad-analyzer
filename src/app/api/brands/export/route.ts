@@ -16,8 +16,9 @@ function filterCommentsByDateRange(comments: any[], startDate: Date, endDate: Da
 function filterAdsByDateRange(ads: any[], startDate: Date, endDate: Date) {
   const isLifetime = startDate.getFullYear() < 1980;
   return ads.filter(ad => {
-    if (!ad.created_at) return false;
-    const d = new Date(ad.created_at);
+    const dateStr = ad["Created At"] ?? ad.created_at;
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
     return isLifetime ? d <= endDate : d >= startDate && d <= endDate;
   });
 }

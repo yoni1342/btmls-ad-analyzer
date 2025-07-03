@@ -33,17 +33,18 @@ function filterAdsByDateRange(ads: any[], startDate: Date, endDate: Date) {
   if (isLifetimeFilter) {
     // For lifetime filter, only filter by end date (current date)
     return ads.filter(ad => {
-      if (!ad.created_at) return false
-
-      const adDate = new Date(ad.created_at);
+      const dateStr = ad["Created At"] ?? ad.created_at;
+      if (!dateStr) return false;
+      const adDate = new Date(dateStr);
       return adDate <= endDate;
     });
   }
   
   // Regular date range filtering
   return ads.filter(ad => {
-    if (!ad.created_at) return false;
-    const adDate = new Date(ad.created_at);
+    const dateStr = ad["Created At"] ?? ad.created_at;
+    if (!dateStr) return false;
+    const adDate = new Date(dateStr);
     return adDate >= startDate && adDate <= endDate;
   });
 }
