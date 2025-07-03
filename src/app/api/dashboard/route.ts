@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { fetchAds, fetchComments, fetchDashboardMetrics, fetchAdsByBrand, fetchCommentsByBrand } from '@/lib/supabase-service';
 import { fetchCommentClusters, fetchClusterCommentMappings } from '@/lib/supabase-service';
 import { Ad } from '@/app/components/TopPerformingAds';
+import { parseToDate } from '@/lib/normalizeDate';
 
 // Helper function to filter comments by date range
 function filterCommentsByDateRange(comments: any[], startDate: Date, endDate: Date) {
@@ -12,15 +13,17 @@ function filterCommentsByDateRange(comments: any[], startDate: Date, endDate: Da
     // For lifetime filter, only filter by end date (current date)
     return comments.filter(comment => {
       if (!comment.created_time) return false;
-      const commentDate = new Date(comment.created_time);
-      return commentDate <= endDate;
+      const commentDate = parseToDate(comment.created_time);
+      if (!commentDate) return false;
+      return commentDate.getFullYear() >= 1980 && commentDate <= endDate;
     });
   }
   
   // Regular date range filtering
   return comments.filter(comment => {
     if (!comment.created_time) return false;
-    const commentDate = new Date(comment.created_time);
+    const commentDate = parseToDate(comment.created_time);
+      if (!commentDate) return false;
     return commentDate >= startDate && commentDate <= endDate;
   });
 }
@@ -35,8 +38,9 @@ function filterAdsByDateRange(ads: any[], startDate: Date, endDate: Date) {
     return ads.filter(ad => {
       const dateStr = ad["Created At"] ?? ad.created_at;
       if (!dateStr) return false;
-      const adDate = new Date(dateStr);
-      return adDate <= endDate;
+      const adDate = parseToDate(dateStr);
+      if (!adDate) return false;
+      return adDate.getFullYear() >= 1980 && adDate <= endDate;
     });
   }
   
@@ -44,7 +48,8 @@ function filterAdsByDateRange(ads: any[], startDate: Date, endDate: Date) {
   return ads.filter(ad => {
     const dateStr = ad["Created At"] ?? ad.created_at;
     if (!dateStr) return false;
-    const adDate = new Date(dateStr);
+    const adDate = parseToDate(dateStr);
+      if (!adDate) return false;
     return adDate >= startDate && adDate <= endDate;
   });
 }
@@ -234,9 +239,35 @@ async function getDefaultDashboardData(
     // Sample time data
     // Determine time labels based on date range
     let timeLabels: string[] = [];
+    let monthYearKeys: string[] = [];
+    let minDate = startDate;
+    let maxDate = endDate;
+    let yearsDiff = 0;
     if (startDate && endDate) {
+      yearsDiff = endDate.getFullYear() - startDate.getFullYear();
+    }
+    if ((yearsDiff >= 1 || (startDate && startDate.getFullYear() < 1980)) && filteredComments.length > 0) {
+      // For lifetime/multi-year, set min/max from data
+      const commentDates = filteredComments
+        .map(c => c.created_time ? new Date(c.created_time) : null)
+        .filter((d): d is Date => d !== null && !isNaN(d.getTime()));
+      if (commentDates.length > 0) {
+        minDate = new Date(Math.min(...commentDates.map(d => d.getTime())));
+        maxDate = new Date(Math.max(...commentDates.map(d => d.getTime())));
+      }
+    }
+    if (minDate && maxDate && (yearsDiff >= 1 || (startDate && startDate.getFullYear() < 1980))) {
+      // Use month-year labels for multi-year or lifetime data, but only for the data range
+      const currentDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      const lastDate = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+      while (currentDate <= lastDate) {
+        const label = currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        timeLabels.push(label);
+        monthYearKeys.push(`${currentDate.getFullYear()}-${currentDate.getMonth()}`);
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+    } else if (startDate && endDate) {
       const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      
       if (daysDiff <= 31) {
         // Use daily labels for ranges less than or equal to 31 days
         const currentDate = new Date(startDate);
@@ -255,23 +286,18 @@ async function getDefaultDashboardData(
         // Use bi-weekly labels for 6-month range
         const currentDate = new Date(startDate);
         while (currentDate <= endDate) {
-          // Create a label showing the 2-week period
           const periodEnd = new Date(currentDate);
-          periodEnd.setDate(periodEnd.getDate() + 13); // End date is 13 days after start (14 days total)
+          periodEnd.setDate(periodEnd.getDate() + 13);
           if (periodEnd > endDate) {
-            periodEnd.setTime(endDate.getTime()); // Don't go beyond the actual end date
+            periodEnd.setTime(endDate.getTime());
           }
-          
-          // Format as "Jan 1 - Jan 14"
           const startStr = currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           const endStr = periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           timeLabels.push(`${startStr} - ${endStr}`);
-          
-          // Move to the next period
           currentDate.setDate(currentDate.getDate() + 14);
         }
       } else {
-        // Use monthly labels for ranges over 180 days
+        // Use monthly labels for ranges over 180 days (but less than a year)
         timeLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       }
     } else {
@@ -280,38 +306,41 @@ async function getDefaultDashboardData(
     }
     
     // Initialize time series data arrays
-    const timeSeriesData = new Array(timeLabels.length).fill(0);
-    const positiveByTime = new Array(timeLabels.length).fill(0);
-    const negativeByTime = new Array(timeLabels.length).fill(0);
+    let timeSeriesData: number[] = new Array(timeLabels.length).fill(0);
+    let positiveByTime: number[] = new Array(timeLabels.length).fill(0);
+    let negativeByTime: number[] = new Array(timeLabels.length).fill(0);
     
     // Fill time series data based on date range
     filteredComments.forEach(comment => {
       if (comment.created_time) {
         const date = new Date(comment.created_time);
         let index = 0;
-        
         if (startDate && endDate) {
           const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          
+          const yearsDiff = endDate.getFullYear() - startDate.getFullYear();
           if (daysDiff <= 31) {
             // Daily index
             index = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
           } else if (daysDiff <= 90) {
             // Weekly index
             index = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
+          } else if (yearsDiff >= 1 || startDate.getFullYear() < 1980) {
+            // Month-year index for multi-year or lifetime
+            const key = `${date.getFullYear()}-${date.getMonth()}`;
+            index = monthYearKeys.indexOf(key);
+          } else if (daysDiff <= 180) {
+            // Bi-weekly index
+            index = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 14));
           } else {
-            // Monthly index for other cases (including lifetime)
+            // Monthly index for other cases
             index = date.getMonth();
           }
         } else {
           // Default to monthly index
           index = date.getMonth();
         }
-        
-        // Ensure index is within bounds
         if (index >= 0 && index < timeSeriesData.length) {
           timeSeriesData[index]++;
-          
           const sentimentValue = comment.sentiment?.toLowerCase();
           if (sentimentValue === 'positive') {
             positiveByTime[index]++;
@@ -701,9 +730,35 @@ async function getBrandDashboardData(
     // Sample time data
     // Determine time labels based on date range
     let timeLabels: string[] = [];
+    let monthYearKeys: string[] = [];
+    let minDate = startDate;
+    let maxDate = endDate;
+    let yearsDiff = 0;
     if (startDate && endDate) {
+      yearsDiff = endDate.getFullYear() - startDate.getFullYear();
+    }
+    if ((yearsDiff >= 1 || (startDate && startDate.getFullYear() < 1980)) && filteredComments.length > 0) {
+      // For lifetime/multi-year, set min/max from data
+      const commentDates = filteredComments
+        .map(c => c.created_time ? new Date(c.created_time) : null)
+        .filter((d): d is Date => d !== null && !isNaN(d.getTime()));
+      if (commentDates.length > 0) {
+        minDate = new Date(Math.min(...commentDates.map(d => d.getTime())));
+        maxDate = new Date(Math.max(...commentDates.map(d => d.getTime())));
+      }
+    }
+    if (minDate && maxDate && (yearsDiff >= 1 || (startDate && startDate.getFullYear() < 1980))) {
+      // Use month-year labels for multi-year or lifetime data, but only for the data range
+      const currentDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      const lastDate = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+      while (currentDate <= lastDate) {
+        const label = currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        timeLabels.push(label);
+        monthYearKeys.push(`${currentDate.getFullYear()}-${currentDate.getMonth()}`);
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+    } else if (startDate && endDate) {
       const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      
       if (daysDiff <= 31) {
         // Use daily labels for ranges less than or equal to 31 days
         const currentDate = new Date(startDate);
@@ -718,21 +773,23 @@ async function getBrandDashboardData(
           timeLabels.push(`Week of ${currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
           currentDate.setDate(currentDate.getDate() + 7);
         }
-      } else {
-        // For lifetime filter or any date range over 90 days
-        // Check if it's likely a lifetime filter (start date before 1980)
-        if (startDate.getFullYear() < 1980) {
-          // Use yearly labels for lifetime data
-          const startYear = Math.max(1970, startDate.getFullYear());
-          const endYear = endDate.getFullYear();
-          
-          for (let year = startYear; year <= endYear; year++) {
-            timeLabels.push(`${year}`);
+      } else if (daysDiff <= 180) {
+        // Use bi-weekly labels for 6-month range
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+          const periodEnd = new Date(currentDate);
+          periodEnd.setDate(periodEnd.getDate() + 13);
+          if (periodEnd > endDate) {
+            periodEnd.setTime(endDate.getTime());
           }
-        } else {
-          // Use monthly labels for date ranges over 90 days
-          timeLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          const startStr = currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const endStr = periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          timeLabels.push(`${startStr} - ${endStr}`);
+          currentDate.setDate(currentDate.getDate() + 14);
         }
+      } else {
+        // Use monthly labels for ranges over 180 days (but less than a year)
+        timeLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       }
     } else {
       // Default to monthly labels
@@ -740,39 +797,41 @@ async function getBrandDashboardData(
     }
     
     // Initialize time series data arrays
-    const timeSeriesData = new Array(timeLabels.length).fill(0);
-    const positiveByTime = new Array(timeLabels.length).fill(0);
-    const negativeByTime = new Array(timeLabels.length).fill(0);
+    let timeSeriesData: number[] = new Array(timeLabels.length).fill(0);
+    let positiveByTime: number[] = new Array(timeLabels.length).fill(0);
+    let negativeByTime: number[] = new Array(timeLabels.length).fill(0);
     
     // Fill time series data based on date range
     filteredComments.forEach(comment => {
       if (comment.created_time) {
         const date = new Date(comment.created_time);
         let index = 0;
-        
         if (startDate && endDate) {
           const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          
+          const yearsDiff = endDate.getFullYear() - startDate.getFullYear();
           if (daysDiff <= 31) {
             // Daily index
             index = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
           } else if (daysDiff <= 90) {
             // Weekly index
             index = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
+          } else if (yearsDiff >= 1 || startDate.getFullYear() < 1980) {
+            // Month-year index for multi-year or lifetime
+            const key = `${date.getFullYear()}-${date.getMonth()}`;
+            index = monthYearKeys.indexOf(key);
+          } else if (daysDiff <= 180) {
+            // Bi-weekly index
+            index = Math.floor((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 14));
           } else {
-            // Monthly index for other cases (including lifetime)
+            // Monthly index for other cases
             index = date.getMonth();
           }
         } else {
           // Default to monthly index
           index = date.getMonth();
         }
-        
-        // Ensure index is within bounds
         if (index >= 0 && index < timeSeriesData.length) {
           timeSeriesData[index]++;
-          
-          // Normalize sentiment value for case-insensitive comparison
           const sentimentValue = comment.sentiment?.toLowerCase();
           if (sentimentValue === 'positive') {
             positiveByTime[index]++;
@@ -1005,15 +1064,11 @@ export async function GET(request: Request) {
     let startDate: Date | undefined = undefined;
     let endDate: Date | undefined = undefined;
     
-    if (startDateStr) {
-      startDate = new Date(startDateStr);
-      console.log('Start Date:', startDate.toISOString());
-    }
+    if (startDateStr) startDate = parseToDate(startDateStr) || undefined;
+    if (startDate) console.log('Start Date:', startDate.toISOString());
     
-    if (endDateStr) {
-      endDate = new Date(endDateStr);
-      console.log('End Date:', endDate.toISOString());
-    }
+    if (endDateStr) endDate = parseToDate(endDateStr) || undefined;
+    if (endDate) console.log('End Date:', endDate.toISOString());
     
     // Fetch dashboard data based on ID
     let dashboardData;

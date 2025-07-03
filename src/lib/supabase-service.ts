@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { parseToDate } from './normalizeDate';
 
 // Types based on the database schema
 export type Ad = {
@@ -72,6 +73,7 @@ export async function fetchAds() {
   const mapped = (data as any[]).map(ad => ({
     ...ad,
     angle_type: getAngleType(ad),
+    created_at: parseToDate(ad.created_at)?.toISOString() ?? null,
   }));
   console.log('Mapped ads with angle_type:', mapped);
   return mapped;
@@ -90,6 +92,7 @@ export async function fetchAdById(adId: string) {
   const mapped = {
     ...data,
     angle_type: getAngleType(data),
+    created_at: parseToDate((data as any).created_at)?.toISOString() ?? null,
   } as Ad;
   console.log('Mapped ad with angle_type:', mapped);
   return mapped;
@@ -107,6 +110,7 @@ export async function fetchAdsByBrand(brand: string) {
   const mapped = (data as any[]).map(ad => ({
     ...ad,
     angle_type: getAngleType(ad),
+    created_at: parseToDate(ad.created_at)?.toISOString() ?? null,
   }));
   console.log('Mapped ads by brand with angle_type:', mapped);
   return mapped;
@@ -121,7 +125,11 @@ export async function fetchComments() {
   
   if (error) throw error;
   console.log(`Retrieved ${data.length} comments from database`);
-  return data as Comment[];
+  const mappedComments = (data as any[]).map(c => ({
+    ...c,
+    created_time: parseToDate(c.created_time)?.toISOString() ?? null,
+  }));
+  return mappedComments as Comment[];
 }
 
 // Fetch comments for a specific ad
@@ -132,7 +140,11 @@ export async function fetchCommentsByAdId(adId: string) {
     .eq('ad_id', adId);
   
   if (error) throw error;
-  return data as Comment[];
+  const mappedComments = (data as any[]).map(c => ({
+    ...c,
+    created_time: parseToDate(c.created_time)?.toISOString() ?? null,
+  }));
+  return mappedComments as Comment[];
 }
 
 // Fetch comments by brand
@@ -143,7 +155,11 @@ export async function fetchCommentsByBrand(brand: string) {
     .eq('brand', brand);
   
   if (error) throw error;
-  return data as Comment[];
+  const mappedComments = (data as any[]).map(c => ({
+    ...c,
+    created_time: parseToDate(c.created_time)?.toISOString() ?? null,
+  }));
+  return mappedComments as Comment[];
 }
 
 // Fetch all comment clusters

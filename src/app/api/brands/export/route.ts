@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
+import { parseToDate } from '@/lib/normalizeDate';
 import { fetchAdsByBrand, fetchCommentsByBrand, fetchCommentClusters, fetchClusterCommentMappings } from '@/lib/supabase-service';
 
 // Helper to filter comments by date range
@@ -7,7 +8,8 @@ function filterCommentsByDateRange(comments: any[], startDate: Date, endDate: Da
   const isLifetime = startDate.getFullYear() < 1980;
   return comments.filter(comment => {
     if (!comment.created_time) return false;
-    const d = new Date(comment.created_time);
+    const d = parseToDate(comment.created_time);
+    if (!d) return false;
     return isLifetime ? d <= endDate : d >= startDate && d <= endDate;
   });
 }
@@ -18,7 +20,8 @@ function filterAdsByDateRange(ads: any[], startDate: Date, endDate: Date) {
   return ads.filter(ad => {
     const dateStr = ad["Created At"] ?? ad.created_at;
     if (!dateStr) return false;
-    const d = new Date(dateStr);
+    const d = parseToDate(dateStr);
+    if (!d) return false;
     return isLifetime ? d <= endDate : d >= startDate && d <= endDate;
   });
 }
@@ -64,8 +67,8 @@ export async function GET(request: Request) {
 
   let startDate: Date | undefined;
   let endDate: Date | undefined;
-  if (startDateStr) startDate = new Date(startDateStr);
-  if (endDateStr) endDate = new Date(endDateStr);
+  if (startDateStr) startDate = parseToDate(startDateStr) || undefined;
+  if (endDateStr) endDate = parseToDate(endDateStr) || undefined;
 
   // Fetch raw data
   let ads = await fetchAdsByBrand(brand);
@@ -121,7 +124,8 @@ export async function GET(request: Request) {
 
   // Format date strings as YYYY-MM-DD for filename
   function formatDate(dateStr: string): string {
-    const d = new Date(dateStr);
+    const d = parseToDate(dateStr);
+    if (!d) return dateStr;
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
