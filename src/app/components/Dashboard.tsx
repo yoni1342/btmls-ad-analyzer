@@ -29,7 +29,7 @@ ChartJS.register(
 
 type DashboardProps = {
   dashboardId?: string;
-  brand?: string;
+  brand_id?: string;
   dateRange?: {
     start: Date;
     end: Date;
@@ -77,7 +77,7 @@ type DashboardData = {
 
 export default function Dashboard({ 
   dashboardId = 'default', 
-  brand,
+  brand_id,
   dateRange,
   sentiment = 'all',
   searchQuery = '',
@@ -93,8 +93,8 @@ export default function Dashboard({
         setLoading(true);
         let url = `/api/dashboard?id=${dashboardId}`;
         
-        if (brand) {
-          url += `&brand=${encodeURIComponent(brand)}`;
+        if (brand_id) {
+        	url += `&brand_id=${encodeURIComponent(brand_id)}`;
         }
         
         // Add date range filters if provided
@@ -128,7 +128,7 @@ export default function Dashboard({
     };
 
     fetchData();
-  }, [dashboardId, brand, dateRange, sentiment, searchQuery]);
+  }, [dashboardId, brand_id, dateRange, sentiment, searchQuery]);
 
   if (loading) {
     return (

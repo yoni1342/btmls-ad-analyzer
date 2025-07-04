@@ -50,38 +50,38 @@ export async function POST(request: Request) {
     const results = [];
 
     for (const group of body) {
-      const { brand, ad_ids } = group;
-      if (!brand || !Array.isArray(ad_ids) || ad_ids.length === 0) {
-        results.push({ error: `Missing brand or ad_ids for group: ${JSON.stringify(group)}` });
-        continue;
+      const { brand_id, ad_ids } = group;
+      if (!brand_id || !Array.isArray(ad_ids) || ad_ids.length === 0) {
+      	results.push({ error: `Missing brand_id or ad_ids for group: ${JSON.stringify(group)}` });
+      	continue;
       }
 
       // Fetch ads for this brand and ad_ids
       const { data: ads, error: adsError } = await supabase
-        .from('ad_per_ad_account')
-        .select('*')
-        .eq('brand', brand)
-        .in('ad_id', ad_ids);
+      	.from('ad_per_ad_account')
+      	.select('*, brands(brand_name)')
+      	.eq('brand_id', brand_id)
+      	.in('ad_id', ad_ids);
       if (adsError) {
-        results.push({ error: `Error fetching ads for brand ${brand}: ${adsError.message}` });
-        continue;
+      	results.push({ error: `Error fetching ads for brand ${brand_id}: ${adsError.message}` });
+      	continue;
       }
-      console.log(`Fetched ${ads.length} ads for brand ${brand}:`, ads);
+      console.log(`Fetched ${ads.length} ads for brand ${brand_id}:`, ads);
 
       // Fetch comments for these ads
       const { data: comments, error: commentsError } = await supabase
-        .from('comments')
-        .select('*')
-        .in('ad_id', ad_ids);
+      	.from('comments')
+      	.select('*')
+      	.in('ad_id', ad_ids);
       if (commentsError) {
-        results.push({ error: `Error fetching comments for brand ${brand}: ${commentsError.message}` });
-        continue;
+      	results.push({ error: `Error fetching comments for brand ${brand_id}: ${commentsError.message}` });
+      	continue;
       }
-      console.log(`Fetched ${comments.length} comments for brand ${brand}:`, comments);
+      console.log(`Fetched ${comments.length} comments for brand ${brand_id}:`, comments);
 
       // After fetching comments:
       const commentIds = comments.map((c: any) => c.comment_id);
-      console.log(`Comment IDs for brand ${brand}:`, commentIds);
+      console.log(`Comment IDs for brand ${brand_id}:`, commentIds);
 
       // Fetch cluster-comment mappings
       const { data: clusterComments, error: clusterCommentsError } = await supabase
@@ -89,14 +89,14 @@ export async function POST(request: Request) {
         .select('*')
         .in('comment_id', commentIds);
       if (clusterCommentsError) {
-        results.push({ error: `Error fetching cluster comments for brand ${brand}: ${clusterCommentsError.message}` });
+        results.push({ error: `Error fetching cluster comments for brand ${brand_id}: ${clusterCommentsError.message}` });
         continue;
-      }
-      console.log(`Fetched ${clusterComments.length} cluster comments for brand ${brand}:`, clusterComments);
+       }
+       console.log(`Fetched ${clusterComments.length} cluster comments for brand ${brand_id}:`, clusterComments);
 
       // Get unique cluster IDs
       const clusterIds = [...new Set(clusterComments.map((cc: any) => cc.id))];
-      console.log(`Cluster IDs for brand ${brand}:`, clusterIds);
+      console.log(`Cluster IDs for brand ${brand_id}:`, clusterIds);
 
       // Fetch clusters
       const { data: clusters, error: clustersError } = await supabase
@@ -104,21 +104,21 @@ export async function POST(request: Request) {
         .select('*')
         .in('id', clusterIds);
       if (clustersError) {
-        results.push({ error: `Error fetching clusters for brand ${brand}: ${clustersError.message}` });
+        results.push({ error: `Error fetching clusters for brand ${brand_id}: ${clustersError.message}` });
         continue;
-      }
-      console.log(`Fetched ${clusters.length} clusters for brand ${brand}:`, clusters);
+       }
+       console.log(`Fetched ${clusters.length} clusters for brand ${brand_id}:`, clusters);
 
       // Check if a previous report exists for this brand
       const { data: prevReports, error: prevError } = await supabase
-        .from('report_metadata')
-        .select('*')
-        .eq('brand', brand)
-        .order('created', { ascending: false })
-        .limit(1);
+      	.from('report_metadata')
+      	.select('*')
+      	.eq('brand_id', brand_id)
+      	.order('created', { ascending: false })
+      	.limit(1);
       if (prevError) {
-        results.push({ error: `Error checking previous report for brand ${brand}: ${prevError.message}` });
-        continue;
+      	results.push({ error: `Error checking previous report for brand ${brand_id}: ${prevError.message}` });
+      	continue;
       }
 
       let prevData = null;
@@ -144,24 +144,26 @@ export async function POST(request: Request) {
         : comments;
 
       // Compose the new report data
+      const brand_name = ads.length > 0 && ads[0].brands ? ads[0].brands.brand_name : 'Unknown';
       const reportData = {
-        brand,
-        ads: mergedAds,
-        comments: mergedComments,
-        clusters,
-        clusterComments
+      	brand: brand_name,
+      	ads: mergedAds,
+      	comments: mergedComments,
+      	clusters,
+      	clusterComments
       };
-      console.log(`Final reportData for brand ${brand}:`, reportData);
-
+      console.log(`Final reportData for brand ${brand_id}:`, reportData);
+  
       // Generate a new report ID
       const reportId = uuidv4();
       const now = new Date().toISOString();
       const reportMetadata = {
-        id: reportId,
-        title: `${brand} Report`,
-        brand,
-        created: now,
-        adcount: mergedAds.length
+      	id: reportId,
+      	title: `${brand_name} Report`,
+      	brand: brand_name,
+      	brand_id,
+      	created: now,
+      	adcount: mergedAds.length
       };
 
       // Insert new report metadata
@@ -169,23 +171,23 @@ export async function POST(request: Request) {
         .from('report_metadata')
         .insert(reportMetadata);
       if (metadataError) {
-        results.push({ error: `Error inserting report metadata for brand ${brand}: ${metadataError.message}` });
+        results.push({ error: `Error inserting report metadata for brand ${brand_id}: ${metadataError.message}` });
         continue;
-      }
+       }
 
       // Insert new report data
       const { error: dataError } = await supabase
         .from('reports')
         .insert({ id: reportId, data: reportData });
       if (dataError) {
-        results.push({ error: `Error inserting report data for brand ${brand}: ${dataError.message}` });
+        results.push({ error: `Error inserting report data for brand ${brand_id}: ${dataError.message}` });
         continue;
-      }
+       }
 
       // Return the report link
       const reportUrl = getReportUrl(reportId);
-      results.push({ brand, reportId, reportUrl });
-    }
+      results.push({ brand: brand_id, reportId, reportUrl });
+     }
 
     return NextResponse.json({ results });
   } catch (error) {

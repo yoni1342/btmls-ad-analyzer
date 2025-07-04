@@ -7,7 +7,7 @@ export type Ad = {
   ad_id: string;
   ad_name: string;
   account_id: string;
-  brand: string;
+  brand_id: string;
   ad_text: string;
   ad_title: string;
   image_url: string;
@@ -31,7 +31,6 @@ export type Comment = {
   created_at: string;
   theme: string;
   sentiment: string;
-  brand: string;
 };
 
 export type CommentCluster = {
@@ -65,8 +64,8 @@ function getAngleType(ad: any): string {
 export async function fetchAds() {
   console.log('Fetching all ads...');
   const { data, error } = await supabase
-    .from('ad_per_ad_account')
-    .select('*');
+  	.from('ad_per_ad_account')
+  	.select('*, brands(brand_name)');
   
   if (error) throw error;
   console.log('Raw ads from Supabase:', data);
@@ -82,10 +81,10 @@ export async function fetchAds() {
 // Fetch a specific ad by ID
 export async function fetchAdById(adId: string) {
   const { data, error } = await supabase
-    .from('ad_per_ad_account')
-    .select('*, image')
-    .eq('ad_id', adId)
-    .single();
+  	.from('ad_per_ad_account')
+  	.select('*, image, brands(brand_name)')
+  	.eq('ad_id', adId)
+  	.single();
   
   if (error) throw error;
   console.log('Raw ad from Supabase:', data);
@@ -99,11 +98,11 @@ export async function fetchAdById(adId: string) {
 }
 
 // Fetch ads by brand
-export async function fetchAdsByBrand(brand: string) {
-  const { data, error } = await supabase
-    .from('ad_per_ad_account')
-    .select('*')
-    .eq('brand', brand);
+export async function fetchAdsByBrand(brand_id: string) {
+	const { data, error } = await supabase
+		.from('ad_per_ad_account')
+		.select('*, brands(brand_name)')
+		.eq('brand_id', brand_id);
   
   if (error) throw error;
   console.log('Raw ads by brand from Supabase:', data);
@@ -148,11 +147,20 @@ export async function fetchCommentsByAdId(adId: string) {
 }
 
 // Fetch comments by brand
-export async function fetchCommentsByBrand(brand: string) {
-  const { data, error } = await supabase
-    .from('comments')
-    .select('*')
-    .eq('brand', brand);
+export async function fetchCommentsByBrand(brand_id: string) {
+	const { data: ads, error: adsError } = await supabase
+		.from('ad_per_ad_account')
+		.select('ad_id')
+		.eq('brand_id', brand_id);
+
+	if (adsError) throw adsError;
+
+	const adIds = ads.map(ad => ad.ad_id);
+
+	const { data, error } = await supabase
+		.from('comments')
+		.select('*')
+		.in('ad_id', adIds);
   
   if (error) throw error;
   const mappedComments = (data as any[]).map(c => ({
@@ -174,17 +182,13 @@ export async function fetchCommentClusters() {
 
 // Fetch unique brands
 export async function fetchBrands() {
-  const { data, error } = await supabase
-    .from<any, { brand: string }>('ad_per_ad_account')
-    .select('brand')
-    .not('brand', 'is', null);
-  console.log('Raw brand data from Supabase:', data);
-  
-  if (error) throw error;
-  
-  // Extract unique brands
-  const uniqueBrands = [...new Set((data ?? []).map((item: { brand: string }) => item.brand))];
-  return uniqueBrands;
+	const { data, error } = await supabase
+		.from('brands')
+		.select('id, brand_name');
+	
+	if (error) throw error;
+
+	return data || [];
 }
 
 // Fetch dashboard metrics

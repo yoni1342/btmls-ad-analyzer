@@ -77,7 +77,7 @@ function filterBySearchQuery(comments: any[], ads: any[], query: string) {
     (ad.ad_name && ad.ad_name.toLowerCase().includes(lowerQuery)) ||
     (ad.ad_text && ad.ad_text.toLowerCase().includes(lowerQuery)) ||
     (ad.ad_title && ad.ad_title.toLowerCase().includes(lowerQuery)) ||
-    (ad.brand && ad.brand.toLowerCase().includes(lowerQuery))
+    (ad.brands && ad.brands.brand_name.toLowerCase().includes(lowerQuery))
   );
   
   // If we're filtering ads, only include comments from those ads
@@ -506,7 +506,7 @@ async function getDefaultDashboardData(
             id: index + 1,
             values: [
               item.ad.ad_name || `Ad ${item.ad.ad_id.slice(0, 8)}`,
-              item.ad.brand || 'Unknown',
+              (item.ad.brands && item.ad.brands.brand_name) || 'Unknown',
               item.commentCount,
               `${positivePercent.toFixed(1)}%`,
               `${negativePercent.toFixed(1)}%`
@@ -538,7 +538,7 @@ async function getDefaultDashboardData(
         return {
           id: item.ad.ad_id,
           adAccountId: item.ad.ad_account_id,
-          brandName: item.ad.brand || 'Unknown',
+          brandName: (item.ad.brands && item.ad.brands.brand_name) || 'Unknown',
           adImage: item.ad.media_url,
           adText: item.ad.ad_creative_body || item.ad.ad_name,
           platform: item.ad.platform || 'Facebook',
@@ -566,21 +566,21 @@ async function getDefaultDashboardData(
 
 // Update brand-specific dashboard data to accept the same filters
 async function getBrandDashboardData(
-  brand: string,
-  startDate?: Date, 
-  endDate?: Date, 
-  sentimentFilter?: string,
-  searchQuery?: string
+	brand_id: string,
+	startDate?: Date,
+	endDate?: Date,
+	sentimentFilter?: string,
+	searchQuery?: string
 ) {
-  try {
-    // Fetch brand-specific data
-    let ads = await fetchAdsByBrand(brand);
-    let comments = await fetchCommentsByBrand(brand);
-    // Fetch cluster data for filtering
-    const fetchedClusters = await fetchCommentClusters();
-    const fetchedClusterComments = await fetchClusterCommentMappings();
-    
-    console.log(`Initial brand data: ${ads.length} ads, ${comments.length} comments for brand ${brand}`);
+	try {
+		// Fetch brand-specific data
+		let ads = await fetchAdsByBrand(brand_id);
+		let comments = await fetchCommentsByBrand(brand_id);
+		// Fetch cluster data for filtering
+		const fetchedClusters = await fetchCommentClusters();
+		const fetchedClusterComments = await fetchClusterCommentMappings();
+
+		console.log(`Initial brand data: ${ads.length} ads, ${comments.length} comments for brand ${brand_id}`);
     
     // Check if this is a lifetime filter
     const isLifetimeFilter = startDate && startDate.getFullYear() < 1980;
@@ -589,14 +589,7 @@ async function getBrandDashboardData(
     }
     
     // Debug: Log comments and their sentiment values
-    console.log(`Fetched ${comments.length} comments for brand ${brand}`);
-    console.log('Sentiment distribution:');
-    const sentimentCounts = comments.reduce((acc, comment) => {
-      const sentiment = comment.sentiment || 'undefined';
-      acc[sentiment] = (acc[sentiment] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    console.log(sentimentCounts);
+    console.log(`Fetched ${comments.length} comments for brand ${brand_id}`);
     
     // If there are no comments with sentiment, normalize the sentiment values
     if (!comments.some(c => c.sentiment)) {
@@ -955,7 +948,7 @@ async function getBrandDashboardData(
     
     // Format data for the dashboard
     return {
-      title: `${brand} Analytics Dashboard`,
+      title: `${ads.length > 0 && ads[0].brands ? ads[0].brands.brand_name : 'Brand'} Analytics Dashboard`,
       metrics: [
         { id: "total_ads", label: "Total Ads", value: filteredAds.length, change: adsChange },
         { id: "total_comments", label: "Total Comments", value: totalComments, change: commentsChange },
@@ -1044,7 +1037,7 @@ async function getBrandDashboardData(
       clusterComments: fetchedClusterComments
     };
   } catch (error) {
-    console.error(`Error fetching brand dashboard data for ${brand}:`, error);
+    console.error(`Error fetching brand dashboard data for ${brand_id}:`, error);
     throw error;
   }
 }
@@ -1054,7 +1047,7 @@ export async function GET(request: Request) {
     // Extract query parameters
     const url = new URL(request.url);
     const dashboardId = url.searchParams.get('id') || 'default';
-    const brand = url.searchParams.get('brand') || undefined;
+    const brand_id = url.searchParams.get('brand_id') || undefined;
     const startDateStr = url.searchParams.get('startDate');
     const endDateStr = url.searchParams.get('endDate');
     const sentiment = url.searchParams.get('sentiment') || undefined;
@@ -1073,11 +1066,11 @@ export async function GET(request: Request) {
     // Fetch dashboard data based on ID
     let dashboardData;
     
-    if (brand) {
-      dashboardData = await getBrandDashboardData(brand, startDate, endDate, sentiment, searchQuery);
-      console.log('Brand:', brand);
-      console.log('Total Ads:', dashboardData.metrics[0].value);
-      console.log('Total Comments:', dashboardData.metrics[1].value);
+    if (brand_id) {
+    	dashboardData = await getBrandDashboardData(brand_id, startDate, endDate, sentiment, searchQuery);
+    	console.log('Brand ID:', brand_id);
+    	console.log('Total Ads:', dashboardData.metrics[0].value);
+    	console.log('Total Comments:', dashboardData.metrics[1].value);
     } else if (dashboardId === 'default') {
       dashboardData = await getDefaultDashboardData(startDate, endDate, sentiment, searchQuery);
       console.log('Total Ads:', dashboardData.metrics[0].value);
@@ -1089,7 +1082,7 @@ export async function GET(request: Request) {
     // Return the dashboard data
     return NextResponse.json({
       id: dashboardId,
-      brand,
+      brand: brand_id,
       filters: {
         startDate: startDate?.toISOString(),
         endDate: endDate?.toISOString(),

@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useState, useEffect } from 'react';
+import { fetchBrands } from '@/lib/supabase-service';
 import BrandSelector from '../components/BrandSelector';
 import FilterBar from '../components/FilterBar';
 import DateRangePicker from '../components/DateRangePicker';
@@ -24,7 +25,7 @@ export default function BrandsPage() {
 function BrandsContent() {
   const searchParams = useSearchParams();
   const initialBrand = searchParams.get('id');
-  const [selectedBrand, setSelectedBrand] = useState<string | undefined>(initialBrand || undefined);
+  const [selectedBrand, setSelectedBrand] = useState<{ id: string; brand_name: string } | undefined>();
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
     start: new Date(new Date().setDate(new Date().getDate() - 30)),
     end: new Date()
@@ -38,13 +39,28 @@ function BrandsContent() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportRange, setExportRange] = useState<{ start: Date; end: Date }>(dateRange);
   
-  const handleSelectBrand = (brand: string) => {
-    setSelectedBrand(brand === '' ? undefined : brand);
-    // Reset to overview tab when changing brands
-    setSelectedTab('overview');
-    // Clear previous brand data and ad selection
-    setBrandData(null);
-    setSelectedAdIds([]);
+  useEffect(() => {
+  	if (initialBrand) {
+  		const fetchAndSetInitialBrand = async () => {
+  			const brands = await fetchBrands();
+  			if (brands) {
+  				const brand = brands.find((b: any) => b.id.toString() === initialBrand);
+  				if (brand) {
+  					setSelectedBrand(brand);
+  				}
+  			}
+  		};
+  		fetchAndSetInitialBrand();
+  	}
+  }, [initialBrand]);
+ 
+  const handleSelectBrand = (brand: { id: string; brand_name: string }) => {
+  	setSelectedBrand(brand.id === '' ? undefined : brand);
+  	// Reset to overview tab when changing brands
+  	setSelectedTab('overview');
+  	// Clear previous brand data and ad selection
+  	setBrandData(null);
+  	setSelectedAdIds([]);
   };
 
   const handleDateRangeChange = (range: { start: Date; end: Date }) => {
@@ -61,7 +77,7 @@ function BrandsContent() {
 
   const doExport = (range: { start: Date; end: Date }) => {
     if (!selectedBrand) return;
-    let url = `/api/brands/export?brand=${encodeURIComponent(selectedBrand)}`;
+    let url = `/api/brands/export?brand_id=${encodeURIComponent(selectedBrand.id)}`;
     if (range) {
       url += `&startDate=${range.start.toISOString()}&endDate=${range.end.toISOString()}`;
     }
@@ -78,10 +94,10 @@ function BrandsContent() {
   useEffect(() => {
     const fetchBrandData = async () => {
       if (!selectedBrand || selectedTab === 'overview') return;
-      
+    
       try {
-        setLoading(true);
-        let url = `/api/dashboard?id=brand&brand=${encodeURIComponent(selectedBrand)}`;
+      	setLoading(true);
+      	let url = `/api/dashboard?id=brand&brand_id=${encodeURIComponent(selectedBrand.id)}`;
         
         // Add date range filters if provided
         if (dateRange) {
@@ -120,7 +136,7 @@ function BrandsContent() {
     <div className="container mx-auto py-8 px-4 relative">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">
-          {selectedBrand ? `${selectedBrand} Analytics` : 'Brand Analytics'}
+          {selectedBrand ? `${selectedBrand.brand_name} Analytics` : 'Brand Analytics'}
         </h1>
         {selectedBrand && (
           <div className="relative">
@@ -176,12 +192,12 @@ function BrandsContent() {
           </div>
           <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">{selectedBrand} Overview</h2>
-              <button 
-                onClick={() => setSelectedBrand(undefined)}
-                className="text-blue-500 hover:text-blue-700 text-sm"
+              <h2 className="text-xl font-semibold">{selectedBrand.brand_name} Overview</h2>
+              <button
+              	onClick={() => setSelectedBrand(undefined)}
+              	className="text-blue-500 hover:text-blue-700 text-sm"
               >
-                ← Back to All Brands
+              	← Back to All Brands
               </button>
             </div>
             
@@ -217,13 +233,13 @@ function BrandsContent() {
             
             {selectedTab === 'overview' && (
               <Dashboard 
-                dashboardId="brand" 
-                brand={selectedBrand}
+                dashboardId="brand"
+                brand_id={selectedBrand.id}
                 dateRange={dateRange}
                 sentiment={sentiment}
                 searchQuery={searchQuery}
                 showExtendedAnalysis={true}
-              />
+               />
             )}
             
             {selectedTab === 'ads' && (
