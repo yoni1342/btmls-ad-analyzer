@@ -246,3 +246,15 @@ export async function fetchClusterCommentMappings() {
   if (error) throw error;
   return data as { id: number; comment_id: string }[];
 } 
+/**
+ * Fetch analyzing status flags for a brand
+ */
+export async function fetchBrandStatus(brand_id: string) {
+  const { data, error } = await supabase
+    .from('brands')
+    .select('is_ad_analyzing,is_comment_analyzing')
+    .eq('id', brand_id)
+    .single();
+  if (error) throw error;
+  return data;
+}

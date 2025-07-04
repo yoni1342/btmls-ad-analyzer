@@ -3,7 +3,8 @@
 import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useState, useEffect } from 'react';
-import { fetchBrands, fetchAdsByBrand, fetchCommentsByBrand } from '@/lib/supabase-service';
+import { toast } from 'sonner';
+import { fetchBrands, fetchAdsByBrand, fetchCommentsByBrand, fetchBrandStatus } from '@/lib/supabase-service';
 import BrandSelector from '../components/BrandSelector';
 import FilterBar from '../components/FilterBar';
 import DateRangePicker from '../components/DateRangePicker';
@@ -46,6 +47,8 @@ function BrandsContent() {
   // Store IDs for untracked items
   const [untrackedAdIds, setUntrackedAdIds] = useState<string[]>([]);
   const [untrackedCommentIds, setUntrackedCommentIds] = useState<string[]>([]);
+  const [isAdAnalyzing, setIsAdAnalyzing] = useState<boolean>(false);
+  const [isCommentAnalyzing, setIsCommentAnalyzing] = useState<boolean>(false);
 
   useEffect(() => {
     if (!selectedBrand) return;
@@ -64,6 +67,20 @@ function BrandsContent() {
 
       } catch (err) {
         console.error('Error counting untracked items:', err);
+      }
+    })();
+  }, [selectedBrand]);
+
+  // Fetch analyzing status flags for selected brand
+  useEffect(() => {
+    if (!selectedBrand) return;
+    (async () => {
+      try {
+        const status = await fetchBrandStatus(selectedBrand.id);
+        setIsAdAnalyzing(status.is_ad_analyzing);
+        setIsCommentAnalyzing(status.is_comment_analyzing);
+      } catch (err) {
+        console.error('Error fetching brand status:', err);
       }
     })();
   }, [selectedBrand]);
@@ -120,49 +137,45 @@ function BrandsContent() {
   };
   
   const handleUntrackedAdsClick = async () => {
-  if (untrackedAdIds.length === 0) return;
+  if (untrackedAdIds.length === 0 || !selectedBrand) return;
   setIsSendingUntracked(true);
   try {
   const response = await fetch('https://n8n.btmls.com/webhook/174ccec0-1203-4873-88de-af45302fb3e8', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ ad_ids: untrackedAdIds }),
+  body: JSON.stringify({ ad_ids: untrackedAdIds, brand_id: selectedBrand.id }),
   });
   if (response.ok) {
-  alert('Untracked ads sent for analysis!');
-  setUntrackedAdsCount(0);
-  setUntrackedAdIds([]);
+    toast.success('Untracked ads sent for analysis!');
   } else {
-  alert('Failed to send untracked ads.');
+    toast.error('Failed to send untracked ads.');
   }
-  } catch (error) {
+} catch (error) {
   console.error('Error sending untracked ads:', error);
-  alert('An error occurred while sending untracked ads.');
-  } finally {
+  toast.error('An error occurred while sending untracked ads.');
+} finally {
   setIsSendingUntracked(false);
   }
   };
   
   const handleUntrackedCommentsClick = async () => {
-  if (untrackedCommentIds.length === 0) return;
+  if (untrackedCommentIds.length === 0 || !selectedBrand) return;
   setIsSendingUntracked(true);
   try {
   const response = await fetch('https://n8n.btmls.com/webhook/5587ef6a-d610-4a48-98c4-9fe624619be7', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ comment_ids: untrackedCommentIds }),
+  body: JSON.stringify({ comment_ids: untrackedCommentIds, brand_id: selectedBrand.id }),
   });
   if (response.ok) {
-  alert('Untracked comments sent for analysis!');
-  setUntrackedCommentsCount(0);
-  setUntrackedCommentIds([]);
+    toast.success('Untracked comments sent for analysis!');
   } else {
-  alert('Failed to send untracked comments.');
+    toast.error('Failed to send untracked comments.');
   }
-  } catch (error) {
+} catch (error) {
   console.error('Error sending untracked comments:', error);
-  alert('An error occurred while sending untracked comments.');
-  } finally {
+  toast.error('An error occurred while sending untracked comments.');
+} finally {
   setIsSendingUntracked(false);
   }
   };
@@ -226,16 +239,34 @@ function BrandsContent() {
             <button
               onClick={handleUntrackedAdsClick}
               className="ml-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
-              disabled={isSendingUntracked || untrackedAdsCount === 0}
+              disabled={isAdAnalyzing || isSendingUntracked || untrackedAdsCount === 0}
               >
-              {isSendingUntracked ? 'Sending...' : `${untrackedAdsCount} Untracked Ads`}
+              {isSendingUntracked ? (
+                'Sending...'
+              ) : (
+                <>
+                  {isAdAnalyzing && (
+                    <span className="animate-spin inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2" aria-label="Loading"></span>
+                  )}
+                  {`${untrackedAdsCount} Untracked Ads`}
+                </>
+              )}
             </button>
             <button
               onClick={handleUntrackedCommentsClick}
               className="ml-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
-              disabled={isSendingUntracked || untrackedCommentsCount === 0}
+              disabled={isCommentAnalyzing || isSendingUntracked || untrackedCommentsCount === 0}
               >
-              {isSendingUntracked ? 'Sending...' : `${untrackedCommentsCount} Untracked Comments`}
+              {isSendingUntracked ? (
+                'Sending...'
+              ) : (
+                <>
+                  {isCommentAnalyzing && (
+                    <span className="animate-spin inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2" aria-label="Loading"></span>
+                  )}
+                  {`${untrackedCommentsCount} Untracked Comments`}
+                </>
+              )}
             </button>
             {showExportMenu && (
               <div className="fixed inset-0 flex items-center justify-center z-50" onClick={() => setShowExportMenu(false)}>

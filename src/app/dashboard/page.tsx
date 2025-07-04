@@ -27,9 +27,7 @@ export default function DashboardPage() {
 function DashboardContent() {
   const searchParams = useSearchParams();
   const dashboardId = searchParams.get('id') || 'default';
-  const [selectedBrand, setSelectedBrand] = useState<string | undefined>(
-    searchParams.get('brand') || undefined
-  );
+  const [selectedBrand, setSelectedBrand] = useState<{ id: string; brand_name: string } | undefined>();
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
     start: new Date(new Date().setDate(new Date().getDate() - 30)),
     end: new Date()
@@ -37,8 +35,8 @@ function DashboardContent() {
   const [sentiment, setSentiment] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   
-  const handleBrandSelect = (brand: string) => {
-    setSelectedBrand(brand === '' ? undefined : brand);
+  const handleBrandSelect = (brand: { id: string; brand_name: string }) => {
+  setSelectedBrand(brand.id === '' ? undefined : brand);
   };
 
   const handleDateRangeChange = (range: { start: Date; end: Date }) => {
@@ -59,9 +57,9 @@ function DashboardContent() {
         <div>
           <h1 className="text-3xl font-bold mb-2">Analytics Dashboard</h1>
           <p className="text-gray-500 dark:text-gray-400">
-            {selectedBrand 
-              ? `Viewing data for ${selectedBrand}` 
-              : 'Overview of all brands and ads'}
+            {selectedBrand
+            ? `Viewing data for ${selectedBrand.brand_name}`
+            : 'Overview of all brands and ads'}
           </p>
         </div>
         <div className="mt-4 md:mt-0">
@@ -101,7 +99,7 @@ function DashboardContent() {
       
       <Dashboard 
         dashboardId={dashboardId} 
-        brand={selectedBrand}
+        brand_id={selectedBrand?.id}
         dateRange={dateRange}
         sentiment={sentiment}
         searchQuery={searchQuery}
