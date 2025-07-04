@@ -3,7 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useState, useEffect } from 'react';
-import { fetchBrands } from '@/lib/supabase-service';
+import { fetchBrands, fetchAdsByBrand, fetchCommentsByBrand } from '@/lib/supabase-service';
 import BrandSelector from '../components/BrandSelector';
 import FilterBar from '../components/FilterBar';
 import DateRangePicker from '../components/DateRangePicker';
@@ -38,6 +38,26 @@ function BrandsContent() {
   const [loading, setLoading] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportRange, setExportRange] = useState<{ start: Date; end: Date }>(dateRange);
+
+  // Count unanalyzed ads/comments
+  const [untrackedAdsCount, setUntrackedAdsCount] = useState<number>(0);
+  const [untrackedCommentsCount, setUntrackedCommentsCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!selectedBrand) return;
+    (async () => {
+      try {
+        const ads = await fetchAdsByBrand(selectedBrand.id);
+        const comments = await fetchCommentsByBrand(selectedBrand.id);
+        const adsCount = ads.filter(ad => !ad.angel && (!ad.angle_type || ad.angle_type === 'Unknown')).length;
+        const commentsCount = comments.filter(c => !c.sentiment).length;
+        setUntrackedAdsCount(adsCount);
+        setUntrackedCommentsCount(commentsCount);
+      } catch (err) {
+        console.error('Error counting untracked items:', err);
+      }
+    })();
+  }, [selectedBrand]);
   
   useEffect(() => {
   	if (initialBrand) {
@@ -145,6 +165,18 @@ function BrandsContent() {
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
             >
               Export
+            </button>
+            <button
+              onClick={() => setSelectedTab('ads')}
+              className="ml-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
+            >
+              {untrackedAdsCount} Untracked Ads
+            </button>
+            <button
+              onClick={() => setSelectedTab('comments')}
+              className="ml-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
+            >
+              {untrackedCommentsCount} Untracked Comments
             </button>
             {showExportMenu && (
               <div className="fixed inset-0 flex items-center justify-center z-50" onClick={() => setShowExportMenu(false)}>
