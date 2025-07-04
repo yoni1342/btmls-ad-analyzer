@@ -38,10 +38,14 @@ function BrandsContent() {
   const [loading, setLoading] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportRange, setExportRange] = useState<{ start: Date; end: Date }>(dateRange);
-
+  const [isSendingUntracked, setIsSendingUntracked] = useState(false);
+  
   // Count unanalyzed ads/comments
   const [untrackedAdsCount, setUntrackedAdsCount] = useState<number>(0);
   const [untrackedCommentsCount, setUntrackedCommentsCount] = useState<number>(0);
+  // Store IDs for untracked items
+  const [untrackedAdIds, setUntrackedAdIds] = useState<string[]>([]);
+  const [untrackedCommentIds, setUntrackedCommentIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!selectedBrand) return;
@@ -49,10 +53,15 @@ function BrandsContent() {
       try {
         const ads = await fetchAdsByBrand(selectedBrand.id);
         const comments = await fetchCommentsByBrand(selectedBrand.id);
-        const adsCount = ads.filter(ad => !ad.angel && (!ad.angle_type || ad.angle_type === 'Unknown')).length;
-        const commentsCount = comments.filter(c => !c.sentiment).length;
-        setUntrackedAdsCount(adsCount);
-        setUntrackedCommentsCount(commentsCount);
+
+        const untrackedAds = ads.filter(ad => !ad.angel && (!ad.angle_type || ad.angle_type === 'Unknown'));
+        const untrackedComments = comments.filter(c => !c.sentiment);
+
+        setUntrackedAdsCount(untrackedAds.length);
+        setUntrackedCommentsCount(untrackedComments.length);
+        setUntrackedAdIds(untrackedAds.map(ad => ad.ad_id));
+        setUntrackedCommentIds(untrackedComments.map(c => c.comment_id));
+
       } catch (err) {
         console.error('Error counting untracked items:', err);
       }
@@ -108,6 +117,54 @@ function BrandsContent() {
       url += `&search=${encodeURIComponent(searchQuery)}`;
     }
     window.open(url, '_blank');
+  };
+  
+  const handleUntrackedAdsClick = async () => {
+  if (untrackedAdIds.length === 0) return;
+  setIsSendingUntracked(true);
+  try {
+  const response = await fetch('https://n8n.btmls.com/webhook/174ccec0-1203-4873-88de-af45302fb3e8', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ ad_ids: untrackedAdIds }),
+  });
+  if (response.ok) {
+  alert('Untracked ads sent for analysis!');
+  setUntrackedAdsCount(0);
+  setUntrackedAdIds([]);
+  } else {
+  alert('Failed to send untracked ads.');
+  }
+  } catch (error) {
+  console.error('Error sending untracked ads:', error);
+  alert('An error occurred while sending untracked ads.');
+  } finally {
+  setIsSendingUntracked(false);
+  }
+  };
+  
+  const handleUntrackedCommentsClick = async () => {
+  if (untrackedCommentIds.length === 0) return;
+  setIsSendingUntracked(true);
+  try {
+  const response = await fetch('https://n8n.btmls.com/webhook/5587ef6a-d610-4a48-98c4-9fe624619be7', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ comment_ids: untrackedCommentIds }),
+  });
+  if (response.ok) {
+  alert('Untracked comments sent for analysis!');
+  setUntrackedCommentsCount(0);
+  setUntrackedCommentIds([]);
+  } else {
+  alert('Failed to send untracked comments.');
+  }
+  } catch (error) {
+  console.error('Error sending untracked comments:', error);
+  alert('An error occurred while sending untracked comments.');
+  } finally {
+  setIsSendingUntracked(false);
+  }
   };
   
   // Fetch brand data for tables when tab changes or when filters change
@@ -167,16 +224,18 @@ function BrandsContent() {
               Export
             </button>
             <button
-              onClick={() => setSelectedTab('ads')}
+              onClick={handleUntrackedAdsClick}
               className="ml-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
-            >
-              {untrackedAdsCount} Untracked Ads
+              disabled={isSendingUntracked || untrackedAdsCount === 0}
+              >
+              {isSendingUntracked ? 'Sending...' : `${untrackedAdsCount} Untracked Ads`}
             </button>
             <button
-              onClick={() => setSelectedTab('comments')}
+              onClick={handleUntrackedCommentsClick}
               className="ml-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
-            >
-              {untrackedCommentsCount} Untracked Comments
+              disabled={isSendingUntracked || untrackedCommentsCount === 0}
+              >
+              {isSendingUntracked ? 'Sending...' : `${untrackedCommentsCount} Untracked Comments`}
             </button>
             {showExportMenu && (
               <div className="fixed inset-0 flex items-center justify-center z-50" onClick={() => setShowExportMenu(false)}>
