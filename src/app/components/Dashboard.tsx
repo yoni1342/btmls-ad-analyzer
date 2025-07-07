@@ -1,5 +1,8 @@
 'use client';
 
+import AdTable from './report/AdTable';
+import CommentTable from './report/CommentTable';
+import MediaGrid from './report/MediaGrid';
 import MetricCard from './MetricCard';
 import SentimentDistribution from './SentimentDistribution';
 import CommentTrends from './CommentTrends';
@@ -62,7 +65,9 @@ type DashboardData = {
     values: number[];
   };
   topAds: any[]; // Changed from Ad type since we removed TopPerformingAds
-  extendedAnalysis?: {
+   ads: any[];
+   allComments: any[];
+ extendedAnalysis?: {
     angleTypeData?: any;
     clusterData?: any;
     adCommentData?: any;
@@ -234,7 +239,8 @@ export default function Dashboard({
       
       {/* Extended Analysis Section - only shown when showExtendedAnalysis is true */}
       {showExtendedAnalysis && data.extendedAnalysis && (
-        <div className="mb-6">
+        <div>
+          <div className="mb-6">
           <h3 className="text-lg font-medium mb-4">Advanced Analytics</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -290,8 +296,26 @@ export default function Dashboard({
               </div>
             </div>
           )}
-        </div>
-      )}
+         
+                 <div>
+                     <div className="mt-6">
+                       <h3 className="text-lg font-medium mb-4">Ads</h3>
+                       <AdTable ads={data.ads || []} />
+                     </div>
+             
+                     <div className="mt-6">
+                       <h3 className="text-lg font-medium mb-4">Comments</h3>
+                       <CommentTable comments={data.allComments || []} />
+                     </div>
+             
+                     <div className="mt-6">
+                       <h3 className="text-lg font-medium mb-4">Media</h3>
+                       <MediaGrid ads={data.ads || []} />
+                     </div>
+                 </div>
+         </div>
+       </div>
+       )}
       
 
     </div>

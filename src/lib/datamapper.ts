@@ -60,7 +60,9 @@ export function transformDataForDashboard(
     key_metrics,
         untracked_info,
         brand_status,
-    } = data;
+        		ads,
+        		comments,
+        } = data;
 
       const totalComments = key_metrics.total_comments || 1;
   const metrics: Metric[] = [
@@ -141,8 +143,11 @@ export function transformDataForDashboard(
       ],
     },
     topAds: top_performing_ads || [],
-    ads: [], // This is not provided by the new function
-    allComments: [], // This is not provided by the new function
+    ads: (ads || []).map((ad: Ad) => ({
+      ...ad,
+      comments: (comments || []).filter((c: Comment) => c.ad_id === ad.ad_id)
+    })),
+    allComments: comments || [],
     extendedAnalysis: {
     adCommentData: {
               labels: (top_performing_ads || []).map((ad: any) => ad.ad_name),

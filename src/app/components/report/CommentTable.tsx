@@ -15,13 +15,11 @@ import {
 type Comment = {
   comment_id: string;
   message: string;
-  theme?: string;
   sentiment?: string;
   ad_id?: string;
   ad_title?: string;
-  angle_type?: string;
-  "Cluster name"?: string;
-  "Cluster Description"?: string;
+  meta_cluster?: string;
+  'Angel Type'?: string;
   created_time?: string;
 };
 
@@ -73,29 +71,23 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
 
   /* Removed commentToMetaCluster utility; using clusters directly */
 
-  // Compute filtered comments by selected meta-cluster (case-insensitive)
-  const filteredByCluster = useMemo(() => {
-    if (!clusterFilter) return filteredByAd;
-    const filterLower = clusterFilter.toLowerCase().trim();
-    return filteredByAd.filter(comment =>
-      clusters.some(cluster =>
-        cluster.comment_id === comment.comment_id &&
-        (cluster.meta_cluster?.toLowerCase().trim() || '') === filterLower
-      )
-    );
-  }, [filteredByAd, clusterFilter, clusters]);
+ // Compute filtered comments by Angel Type and meta-cluster
+ const filteredByCluster = useMemo(() => {
+   let result = filteredByAd;
+   if (angleTypeFilter) {
+     result = result.filter(c => (c['Angel Type'] || 'Unknown') === angleTypeFilter);
+   }
+   if (clusterFilter) {
+     result = result.filter(c => (c.meta_cluster || 'Unknown') === clusterFilter);
+   }
+   return result;
+ }, [filteredByAd, angleTypeFilter, clusterFilter]);
 
-  // Compute unique meta-cluster values for filter dropdown
-  const metaClusters = useMemo(() =>
-    Array.from(
-      new Set(
-        clusters
-          .map(c => (c.meta_cluster || '').toString().trim())
-          .filter(mc => mc)
-      )
-    ),
-    [clusters]
-  );
+   // Compute unique meta-cluster values for filter dropdown
+   const metaClusters = useMemo(() =>
+     Array.from(new Set(filteredByAd.map(c => (c.meta_cluster || 'Unknown')))),
+     [filteredByAd]
+   );
 
   const handleRowClick = (comment: Comment) => {
     setSelectedComment(comment);
@@ -116,10 +108,10 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
   );
   // (previous metaClusters removed)
 
-  const angleTypes = useMemo(() =>
-    Array.from(new Set(comments.map(c => c.angle_type || 'Unknown'))),
-    [comments]
-  );
+   const angleTypes = useMemo(() =>
+     Array.from(new Set(filteredByAd.map(c => (c['Angel Type'] || 'Unknown')))),
+     [filteredByAd]
+   );
 
   const columnHelper = createColumnHelper<Comment>();
 
@@ -180,32 +172,14 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
       filterFn: 'equals',
       sortingFn: 'alphanumeric',
     }),
-    columnHelper.accessor((row) => row["Cluster name"] || row.theme, {
-      id: 'cluster',
-      header: () => (
-        <div className="cursor-pointer">Cluster/Theme</div>
-      ),
-      cell: info => {
-        const clusterName = info.getValue();
-        const clusterDesc = info.row.original["Cluster Description"];
-        return (
-          <div className="group relative">
-            <span>{clusterName || 'Unknown'}</span>
-            {clusterDesc && (
-              <div className="absolute z-10 hidden group-hover:block bg-gray-800 text-white p-2 rounded w-64 text-xs -left-16 top-6">
-                {clusterDesc}
-              </div>
-            )}
-          </div>
-        );
-      },
+    columnHelper.accessor('meta_cluster', {
+      header: () => <div className="cursor-pointer">Cluster</div>,
+      cell: info => <>{info.getValue() || 'Unknown'}</>,
       filterFn: 'equals',
       sortingFn: 'alphanumeric',
     }),
-    columnHelper.accessor('angle_type', {
-      header: () => (
-        <div className="cursor-pointer">Angle</div>
-      ),
+    columnHelper.accessor('Angel Type', {
+      header: () => <div className="cursor-pointer">Angel Type</div>,
       cell: info => info.getValue() || 'Unknown',
       filterFn: 'equals',
       sortingFn: 'alphanumeric',
@@ -316,10 +290,8 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
               <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 <div>Date: {selectedComment.created_time ? new Date(selectedComment.created_time).toLocaleString() : 'Unknown'}</div>
                 <div>Sentiment: {selectedComment.sentiment || 'Unknown'}</div>
-                <div>Cluster: {selectedComment["Cluster name"] || selectedComment.theme || 'Unknown'}</div>
-                {selectedComment["Cluster Description"] && (
-                  <div>Cluster Description: {selectedComment["Cluster Description"]}</div>
-                )}
+                <div>Cluster: {selectedComment.meta_cluster || 'Unknown'}</div>
+                <div>Angel Type: {selectedComment['Angel Type'] || 'Unknown'}</div>
               </div>
             </div>
             
