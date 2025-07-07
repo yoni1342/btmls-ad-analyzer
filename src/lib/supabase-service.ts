@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { parseToDate } from './normalizeDate';
 
 // Types based on the database schema
 export type Ad = {
@@ -6,7 +7,7 @@ export type Ad = {
   ad_id: string;
   ad_name: string;
   account_id: string;
-  brand: string;
+  brand_id: string;
   ad_text: string;
   ad_title: string;
   image_url: string;
@@ -30,7 +31,6 @@ export type Comment = {
   created_at: string;
   theme: string;
   sentiment: string;
-  brand: string;
 };
 
 export type CommentCluster = {
@@ -50,12 +50,12 @@ function getAngleType(ad: any): string {
   return (
     ad.angle_type ||
     ad.angel_type ||
-    ad["Angel Type"] ||
-    ad["Angel"] ||
-    ad["angel_type"] ||
-    ad["angel"] ||
-    ad["angle_type"] ||
-    ad["angle"] ||
+    ad['Angel Type'] ||
+    ad['Angel'] ||
+    ad['angel_type'] ||
+    ad['angel'] ||
+    ad['angle_type'] ||
+    ad['angle'] ||
     'Unknown'
   );
 }
@@ -65,13 +65,14 @@ export async function fetchAds() {
   console.log('Fetching all ads...');
   const { data, error } = await supabase
     .from('ad_per_ad_account')
-    .select('*');
+    .select('*, brands(brand_name)');
   
   if (error) throw error;
   console.log('Raw ads from Supabase:', data);
   const mapped = (data as any[]).map(ad => ({
     ...ad,
     angle_type: getAngleType(ad),
+    created_at: parseToDate(ad.created_at)?.toISOString() ?? null,
   }));
   console.log('Mapped ads with angle_type:', mapped);
   return mapped;
@@ -81,7 +82,7 @@ export async function fetchAds() {
 export async function fetchAdById(adId: string) {
   const { data, error } = await supabase
     .from('ad_per_ad_account')
-    .select('*, image')
+    .select('*, image, brands(brand_name)')
     .eq('ad_id', adId)
     .single();
   
@@ -90,27 +91,12 @@ export async function fetchAdById(adId: string) {
   const mapped = {
     ...data,
     angle_type: getAngleType(data),
+    created_at: parseToDate((data as any).created_at)?.toISOString() ?? null,
   } as Ad;
   console.log('Mapped ad with angle_type:', mapped);
   return mapped;
 }
 
-// Fetch ads by brand
-export async function fetchAdsByBrand(brand: string) {
-  const { data, error } = await supabase
-    .from('ad_per_ad_account')
-    .select('*')
-    .eq('brand', brand);
-  
-  if (error) throw error;
-  console.log('Raw ads by brand from Supabase:', data);
-  const mapped = (data as any[]).map(ad => ({
-    ...ad,
-    angle_type: getAngleType(ad),
-  }));
-  console.log('Mapped ads by brand with angle_type:', mapped);
-  return mapped;
-}
 
 // Fetch all comments
 export async function fetchComments() {
@@ -121,7 +107,11 @@ export async function fetchComments() {
   
   if (error) throw error;
   console.log(`Retrieved ${data.length} comments from database`);
-  return data as Comment[];
+  const mappedComments = (data as any[]).map(c => ({
+    ...c,
+    created_time: parseToDate(c.created_time)?.toISOString() ?? null,
+  }));
+  return mappedComments as Comment[];
 }
 
 // Fetch comments for a specific ad
@@ -132,19 +122,13 @@ export async function fetchCommentsByAdId(adId: string) {
     .eq('ad_id', adId);
   
   if (error) throw error;
-  return data as Comment[];
+  const mappedComments = (data as any[]).map(c => ({
+    ...c,
+    created_time: parseToDate(c.created_time)?.toISOString() ?? null,
+  }));
+  return mappedComments as Comment[];
 }
 
-// Fetch comments by brand
-export async function fetchCommentsByBrand(brand: string) {
-  const { data, error } = await supabase
-    .from('comments')
-    .select('*')
-    .eq('brand', brand);
-  
-  if (error) throw error;
-  return data as Comment[];
-}
 
 // Fetch all comment clusters
 export async function fetchCommentClusters() {
@@ -156,67 +140,6 @@ export async function fetchCommentClusters() {
   return data as CommentCluster[];
 }
 
-// Fetch unique brands
-export async function fetchBrands() {
-  const { data, error } = await supabase
-    .from<any, { brand: string }>('ad_per_ad_account')
-    .select('brand')
-    .not('brand', 'is', null);
-  console.log('Raw brand data from Supabase:', data);
-  
-  if (error) throw error;
-  
-  // Extract unique brands
-  const uniqueBrands = [...new Set((data ?? []).map((item: { brand: string }) => item.brand))];
-  return uniqueBrands;
-}
-
-// Fetch dashboard metrics
-export async function fetchDashboardMetrics() {
-  // Fetch count of ads
-  const { count: adCount, error: adError } = await supabase
-    .from('ad_per_ad_account')
-    .select('*', { count: 'exact', head: true });
-  
-  if (adError) throw adError;
-  
-  // Fetch count of comments
-  const { count: commentCount, error: commentError } = await supabase
-    .from('comments')
-    .select('*', { count: 'exact', head: true });
-  
-  if (commentError) throw commentError;
-  
-  // Fetch sentiment distribution
-  const { data: sentimentData, error: sentimentError } = await supabase
-    .from<any, { sentiment: string | null }>('comments')
-    
-    .select('sentiment')
-    .not('sentiment', 'is', null);
-  console.log('Raw sentimentData from Supabase:', sentimentData);
-  
-  if (sentimentError) throw sentimentError;
-  
-  // Calculate sentiment percentages
-  const sentiments: string[] = (sentimentData ?? []).map((item: { sentiment: string | null }) => item.sentiment?.toLowerCase() ?? '');
-  const sentimentCounts = {
-    positive: sentiments.filter((s: string) => s === 'positive').length,
-    negative: sentiments.filter((s: string) => s === 'negative').length,
-    neutral: sentiments.length - sentiments.filter((s: string) => s === 'positive' || s === 'negative').length,
-  };
-  
-  const totalSentiments = sentiments.length || 1; // Avoid division by zero
-  
-  return {
-    totalAds: adCount || 0,
-    totalComments: commentCount || 0,
-    sentimentDistribution: {
-      positive: (sentimentCounts.positive / totalSentiments) * 100,
-      negative: (sentimentCounts.negative / totalSentiments) * 100,
-      neutral: (sentimentCounts.neutral / totalSentiments) * 100,
-    }
-  };
-}
 
 // Fetch all cluster-comment mappings
 export async function fetchClusterCommentMappings() {
@@ -225,4 +148,8 @@ export async function fetchClusterCommentMappings() {
     .select('*');
   if (error) throw error;
   return data as { id: number; comment_id: string }[];
-} 
+}
+
+/**
+ * Fetch analyzing status flags for a brand
+ */

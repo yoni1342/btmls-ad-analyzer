@@ -1,0 +1,4 @@
+-- Migration to remove the 'brand' column from the 'ad_per_ad_account' table.
+
+ALTER TABLE "public"."ad_per_ad_account"
+DROP COLUMN IF EXISTS "brand"
