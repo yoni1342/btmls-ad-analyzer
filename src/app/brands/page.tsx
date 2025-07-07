@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { getBrands, getBrandDashboardData } from '@/app/actions';
 import { useAppStore } from '@/lib/store';
@@ -53,6 +53,7 @@ function BrandsContent() {
     setUntrackedInfo,
     setAnalyzingStatus,
   } = useAppStore();
+  const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
 
   useEffect(() => {
   if (initialBrand) {
@@ -285,8 +286,8 @@ function BrandsContent() {
                   ) : brandData?.ads && brandData.ads.length > 0 ? (
                     <AdTable
                       ads={brandData.ads}
-                      selectedAdIds={[]}
-                      onSelectedAdIdsChange={() => {}}
+                      selectedAdIds={selectedAdIds}
+                      onSelectedAdIdsChange={setSelectedAdIds}
                     />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -309,6 +310,7 @@ function BrandsContent() {
                     <CommentTable
                     comments={brandData.allComments}
                     ads={brandData.ads || []}
+                    selectedAdIds={selectedAdIds}
                     />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">

@@ -178,7 +178,7 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
       filterFn: 'equals',
       sortingFn: 'alphanumeric',
     }),
-    columnHelper.accessor('Angel Type', {
+    columnHelper.accessor('Angel Type', { id: 'angle_type',
       header: () => <div className="cursor-pointer">Angel Type</div>,
       cell: info => info.getValue() || 'Unknown',
       filterFn: 'equals',
