@@ -1,0 +1,41 @@
+'use server';
+
+import {
+} from '@/lib/supabase-service';
+import { supabase } from '@/lib/supabase';
+import { revalidatePath } from 'next/cache';
+import { transformDataForDashboard } from '@/lib/datamapper';
+
+export async function getBrands() {
+  const { data, error } = await supabase
+    .from('brands')
+    .select('id, brand_name');
+
+  if (error) throw error;
+
+  const brands = data || [];
+  revalidatePath('/brands');
+  return brands;
+}
+
+
+export async function getBrandDashboardData(
+  brandId?: string,
+  dateRange?: { start: Date; end: Date },
+    sentiment?: string
+  ) {
+  const { data, error } = await supabase.rpc('get_dashboard_data', {
+  brand_id_param: brandId ? parseInt(brandId, 10) : null,
+  start_date_param: dateRange?.start.toISOString(),
+  end_date_param: dateRange?.end.toISOString(),
+      sentiment_param: sentiment
+  });
+
+  if (error) {
+    console.error('Error fetching dashboard data:', error);
+    throw error;
+  }
+  
+  const transformedData = transformDataForDashboard(data, dateRange);
+  return transformedData;
+}

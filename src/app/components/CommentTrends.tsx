@@ -44,7 +44,7 @@ export default function CommentTrends({
   ];
 
   // Calculate total comments per time period for percent sentiment
-  const totalData = data.datasets.find(ds => ds.name.toLowerCase().includes('total'))?.data || [];
+  const totalData = data.datasets.find(ds => ds.name.toLowerCase().includes('comments'))?.data || [];
   // Line chart data
   const lineChartData = {
     labels: data.labels,

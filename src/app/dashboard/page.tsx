@@ -3,9 +3,11 @@
 import { useSearchParams } from 'next/navigation';
 import Dashboard from '../components/Dashboard';
 import SidebarLayout from '../components/SidebarLayout';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect } from 'react';
 import FilterBar from '../components/FilterBar';
 import BrandSelector from '../components/BrandSelector';
+import { useAppStore } from '@/lib/store';
+import { getBrands, getBrandDashboardData } from '@/app/actions';
 
 export default function DashboardPage() {
   return (
@@ -25,18 +27,45 @@ export default function DashboardPage() {
 }
 
 function DashboardContent() {
-  const searchParams = useSearchParams();
-  const dashboardId = searchParams.get('id') || 'default';
-  const [selectedBrand, setSelectedBrand] = useState<{ id: string; brand_name: string } | undefined>();
-  const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
-    start: new Date(new Date().setDate(new Date().getDate() - 30)),
-    end: new Date()
-  });
-  const [sentiment, setSentiment] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  
+  const {
+    brands,
+    selectedBrand,
+    dateRange,
+    sentiment,
+    searchQuery,
+    setBrands,
+    setSelectedBrand,
+    setDateRange,
+    setSentiment,
+    setSearchQuery,
+    setBrandData,
+    brandData,
+    setLoading,
+    loading
+  } = useAppStore();
+
+  useEffect(() => {
+    getBrands().then(setBrands);
+  }, [setBrands]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+        setLoading(true);
+        try {
+            const data = await getBrandDashboardData(selectedBrand?.id, dateRange, sentiment);
+            setBrandData(data);
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setLoading(false);
+        }
+    }
+    fetchDashboardData();
+  }, [selectedBrand, dateRange, sentiment, setBrandData, setLoading]);
+
+
   const handleBrandSelect = (brand: { id: string; brand_name: string }) => {
-  setSelectedBrand(brand.id === '' ? undefined : brand);
+    setSelectedBrand(brand.id === '' ? undefined : brand);
   };
 
   const handleDateRangeChange = (range: { start: Date; end: Date }) => {
@@ -58,8 +87,8 @@ function DashboardContent() {
           <h1 className="text-3xl font-bold mb-2">Analytics Dashboard</h1>
           <p className="text-gray-500 dark:text-gray-400">
             {selectedBrand
-            ? `Viewing data for ${selectedBrand.brand_name}`
-            : 'Overview of all brands and ads'}
+              ? `Viewing data for ${selectedBrand.brand_name}`
+              : 'Overview of all brands and ads'}
           </p>
         </div>
         <div className="mt-4 md:mt-0">
@@ -90,6 +119,7 @@ function DashboardContent() {
         </div>
         <div className="md:col-span-1">
           <BrandSelector 
+            brands={brands}
             selectedBrand={selectedBrand} 
             onSelectBrand={handleBrandSelect}
             displayAs="dropdown"
@@ -98,11 +128,8 @@ function DashboardContent() {
       </div>
       
       <Dashboard 
-        dashboardId={dashboardId} 
-        brand_id={selectedBrand?.id}
-        dateRange={dateRange}
-        sentiment={sentiment}
-        searchQuery={searchQuery}
+        data={brandData}
+        loading={loading}
       />
     </div>
   );

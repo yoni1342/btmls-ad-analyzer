@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import MetricCard from './MetricCard';
 import SentimentDistribution from './SentimentDistribution';
 import CommentTrends from './CommentTrends';
@@ -28,14 +27,9 @@ ChartJS.register(
 );
 
 type DashboardProps = {
-  dashboardId?: string;
-  brand_id?: string;
-  dateRange?: {
-    start: Date;
-    end: Date;
-  };
-  sentiment?: string;
-  searchQuery?: string;
+  data: DashboardData | null;
+  loading: boolean;
+  error?: string | null;
   showExtendedAnalysis?: boolean;
 };
 
@@ -76,59 +70,11 @@ type DashboardData = {
 };
 
 export default function Dashboard({ 
-  dashboardId = 'default', 
-  brand_id,
-  dateRange,
-  sentiment = 'all',
-  searchQuery = '',
+  data,
+  loading,
+  error,
   showExtendedAnalysis = false
 }: DashboardProps) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<DashboardData | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        let url = `/api/dashboard?id=${dashboardId}`;
-        
-        if (brand_id) {
-        	url += `&brand_id=${encodeURIComponent(brand_id)}`;
-        }
-        
-        // Add date range filters if provided
-        if (dateRange) {
-          url += `&startDate=${dateRange.start.toISOString()}&endDate=${dateRange.end.toISOString()}`;
-        }
-        
-        // Add sentiment filter if not 'all'
-        if (sentiment && sentiment !== 'all') {
-          url += `&sentiment=${encodeURIComponent(sentiment)}`;
-        }
-        
-        // Add search query if provided
-        if (searchQuery) {
-          url += `&search=${encodeURIComponent(searchQuery)}`;
-        }
-        
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch dashboard data');
-        }
-        
-        const result = await response.json();
-        setData(result.data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [dashboardId, brand_id, dateRange, sentiment, searchQuery]);
 
   if (loading) {
     return (
@@ -188,7 +134,7 @@ export default function Dashboard({
     );
   }
 
-  if (!data) {
+  if (!data || !data.metrics || !data.timeSeriesData) {
     return (
       <div className="dashboard">
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-800 p-6 rounded-xl text-blue-600 dark:text-blue-400">
@@ -226,7 +172,7 @@ export default function Dashboard({
   return (
     <div className="dashboard">
       {/* Metrics Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {data.metrics.map((metric) => (
           <MetricCard
             key={metric.id}
@@ -258,23 +204,15 @@ export default function Dashboard({
         ))}
       </div>
       
-      {/* Date Range Indicator for Lifetime View */}
-      {dateRange && dateRange.start.getFullYear() <= 1970 && (
-        <div className="mb-4 px-3 py-1 inline-flex items-center bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Showing Lifetime Data
-        </div>
-      )}
-      
       {/* Charts Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Comment Trends Chart */}
-        <CommentTrends 
-          data={commentTrendsData}
-          title="Comment Trends"
-          subtitle="Tracking comment volume and sentiment over time"
+        <CommentTrends
+          data={data.timeSeriesData}
+          chartType="line"
+          loading={loading}
+          showLegend={showExtendedAnalysis}
+          subtitle="Comment volume and sentiment over time"
         />
         
         {/* Sentiment Distribution Chart */}
