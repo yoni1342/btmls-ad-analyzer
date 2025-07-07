@@ -297,22 +297,6 @@ export default function Dashboard({
             </div>
           )}
          
-                 <div>
-                     <div className="mt-6">
-                       <h3 className="text-lg font-medium mb-4">Ads</h3>
-                       <AdTable ads={data.ads || []} />
-                     </div>
-             
-                     <div className="mt-6">
-                       <h3 className="text-lg font-medium mb-4">Comments</h3>
-                       <CommentTable comments={data.allComments || []} />
-                     </div>
-             
-                     <div className="mt-6">
-                       <h3 className="text-lg font-medium mb-4">Media</h3>
-                       <MediaGrid ads={data.ads || []} />
-                     </div>
-                 </div>
          </div>
        </div>
        )}

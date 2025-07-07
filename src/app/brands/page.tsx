@@ -83,7 +83,7 @@ function BrandsContent() {
       if (!selectedBrand) return;
         setLoading(true);
         try {
-            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment);
+            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, searchQuery);
             setBrandData(result);
                           if (result.untracked_info) {
                             setUntrackedInfo({
@@ -107,7 +107,7 @@ function BrandsContent() {
     };
 
     fetchBrandData();
-  }, [selectedBrand, dateRange, sentiment, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
+  }, [selectedBrand, dateRange, sentiment, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
 
   const handleSelectBrand = (brand: { id: string; brand_name: string }) => {
     setSelectedBrand(brand.id === '' ? undefined : brand);
