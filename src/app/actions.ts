@@ -35,18 +35,5 @@ export async function getBrandDashboardData(
     throw error;
   }
   
-  let transformedData = transformDataForDashboard(data, dateRange);
-  if (searchQuery) {
-    const lowerQuery = searchQuery.toLowerCase();
-    transformedData.ads = transformedData.ads.filter(ad =>
-      (ad.ad_name?.toLowerCase().includes(lowerQuery)) ||
-      (ad.ad_text?.toLowerCase().includes(lowerQuery)) ||
-      (ad.ad_title?.toLowerCase().includes(lowerQuery))
-    );
-    transformedData.allComments = transformedData.allComments.filter(comment =>
-      comment.message?.toLowerCase().includes(lowerQuery) ||
-      comment.theme?.toLowerCase().includes(lowerQuery)
-    );
-  }
-  return transformedData;
+  return transformDataForDashboard(data, dateRange);
 }

@@ -332,7 +332,12 @@ function BrandsContent() {
                     </div>
                   ) : brandData?.ads && brandData.ads.length > 0 ? (
                     <AdTable
-                      ads={brandData.ads}
+                      ads={brandData.ads.filter(ad =>
+                        !searchQuery ||
+                        (ad.ad_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                        (ad.ad_text?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                        (ad.ad_title?.toLowerCase().includes(searchQuery.toLowerCase()))
+                      )}
                       selectedAdIds={selectedAdIds}
                       onSelectedAdIdsChange={setSelectedAdIds}
                     />
@@ -355,7 +360,11 @@ function BrandsContent() {
                     </div>
                   ) : brandData?.allComments && brandData.allComments.length > 0 ? (
                     <CommentTable
-                    comments={brandData.allComments}
+                    comments={brandData.allComments.filter(comment =>
+                      !searchQuery ||
+                      comment.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      comment.theme?.toLowerCase().includes(searchQuery.toLowerCase())
+                    )}
                     ads={brandData.ads || []}
                     selectedAdIds={selectedAdIds}
                     />
