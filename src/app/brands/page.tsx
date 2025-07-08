@@ -160,7 +160,12 @@ function BrandsContent() {
   const handleUntrackedAdsClick = async () => {
     if (untrackedAdIds.length === 0 || !selectedBrand) return;
     try {
-      const response = await fetch('https://n8n.btmls.com/webhook/174ccec0-1203-4873-88de-af45302fb3e8', {
+      const adsWebhookUrl = process.env.NEXT_PUBLIC_ADS_WEBHOOK_URL;
+      if (!adsWebhookUrl) {
+        toast.error('Ads webhook URL is not configured.');
+        return;
+      }
+      const response = await fetch(adsWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ad_ids: untrackedAdIds, brand_id: selectedBrand.id }),
@@ -179,7 +184,12 @@ function BrandsContent() {
   const handleUntrackedCommentsClick = async () => {
     if (untrackedCommentIds.length === 0 || !selectedBrand) return;
     try {
-      const response = await fetch('https://n8n.btmls.com/webhook/5587ef6a-d610-4a48-98c4-9fe624619be7', {
+      const commentsWebhookUrl = process.env.NEXT_PUBLIC_COMMENTS_WEBHOOK_URL;
+      if (!commentsWebhookUrl) {
+        toast.error('Comments webhook URL is not configured.');
+        return;
+      }
+      const response = await fetch(commentsWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ comment_ids: untrackedCommentIds, brand_id: selectedBrand.id }),
