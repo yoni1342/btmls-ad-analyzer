@@ -80,6 +80,8 @@ function BrandsContent() {
     setAnalyzingStatus,
   } = useAppStore();
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
+  const [showExportPicker, setShowExportPicker] = useState(false);
+  const [exportRange, setExportRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
 
   useEffect(() => {
   if (initialBrand) {
@@ -200,13 +202,32 @@ function BrandsContent() {
           {selectedBrand ? `${selectedBrand.brand_name} Analytics` : 'Brand Analytics'}
         </h1>
         {selectedBrand && (
-          <div className="relative">
+          <div className="relative inline-block overflow-visible">
             <button
-              onClick={() => doExport(dateRange)}
+              onClick={() => { setExportRange({ startDate: dateRange.start, endDate: dateRange.end }); setShowExportPicker(prev => !prev); }}
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
             >
               Export
             </button>
+            {showExportPicker && (
+              <div className="absolute right-0 top-full mt-2 z-10 w-96">
+                <DateRangePicker
+                                   className="w-full"
+                                   initialRange={exportRange}
+                                   onChange={(range) => {
+                                     setExportRange(range);
+                                   }}
+                                 />
+                               <div className="mt-2">
+                                 <button
+                                   onClick={() => { doExport({ start: exportRange.startDate, end: exportRange.endDate }); setShowExportPicker(false); }}
+                                   className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                                 >
+                                   Download
+                                 </button>
+                               </div>
+</div>
+                             )}
             <button
               onClick={handleUntrackedAdsClick}
               className="ml-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
