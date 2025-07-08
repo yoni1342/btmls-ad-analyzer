@@ -4,9 +4,22 @@ import Link from 'next/link';
 import Image from 'next/image';
 import ThemeToggle from './ThemeToggle';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [session, setSession] = useState<Session | null>(null);
+  const router = useRouter();
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session as Session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
+      setSession(session);
+    });
+    return () => { subscription.unsubscribe(); };
+  }, []);
   
   const isActive = (path: string) => {
     return pathname === path;
@@ -50,20 +63,36 @@ export default function Navbar() {
             >
               Dashboard
             </Link>
-            <Link 
-              href="/reports"
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                isActive('/reports') || pathname.startsWith('/reports/') 
-                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              Reports
-            </Link>
           </div>
           
           <ThemeToggle />
-        </div>
+          {session ? (
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push('/');
+              }}
+              className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              Logout
+            </button>
+          ) : (
+            <>
+              <Link
+                href="/auth?mode=login"
+                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Login
+              </Link>
+              <Link
+                href="/auth?mode=signup"
+                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
+          </div>
       </div>
     </nav>
   );

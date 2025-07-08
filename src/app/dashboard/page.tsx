@@ -1,15 +1,41 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+
 import { useSearchParams } from 'next/navigation';
 import Dashboard from '../components/Dashboard';
 import SidebarLayout from '../components/SidebarLayout';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import FilterBar from '../components/FilterBar';
 import BrandSelector from '../components/BrandSelector';
 import { useAppStore } from '@/lib/store';
 import { getBrands, getBrandDashboardData } from '@/app/actions';
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace('/auth?mode=login');
+      } else {
+        setSession(data.session);
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, newSession) => {
+      if (!newSession) {
+        router.replace('/auth?mode=login');
+      } else {
+        setSession(newSession);
+      }
+    });
+    return () => { subscription.unsubscribe(); };
+  }, [router]);
+
+  if (!session) return null;
   return (
     <SidebarLayout>
       <Suspense fallback={

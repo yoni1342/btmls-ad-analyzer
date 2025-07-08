@@ -1,5 +1,9 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+
 import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useEffect, useState } from 'react';
@@ -15,6 +19,28 @@ import CommentTable from '../components/report/CommentTable';
 import MediaGrid from '../components/report/MediaGrid';
 
 export default function BrandsPage() {
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace('/auth?mode=login');
+      } else {
+        setSession(data.session);
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, newSession: Session | null) => {
+      if (!newSession) {
+        router.replace('/auth?mode=login');
+      } else {
+        setSession(newSession);
+      }
+    });
+    return () => { subscription.unsubscribe(); };
+  }, [router]);
+
+  if (!session) return null;
   return (
     <SidebarLayout>
       <Suspense fallback={<div className="container mx-auto py-8 px-4">Loading brands...</div>}>
