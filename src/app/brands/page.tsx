@@ -172,6 +172,8 @@ function BrandsContent() {
       });
       if (response.ok) {
         toast.success('Untracked ads sent for analysis!');
+        // Immediately show loading animation on successful webhook call
+        setAnalyzingStatus({ ad: true, comment: isCommentAnalyzing });
       } else {
         toast.error('Failed to send untracked ads.');
       }
@@ -196,6 +198,8 @@ function BrandsContent() {
       });
       if (response.ok) {
         toast.success('Untracked comments sent for analysis!');
+        // Immediately show loading animation on successful webhook call
+        setAnalyzingStatus({ ad: isAdAnalyzing, comment: true });
       } else {
         toast.error('Failed to send untracked comments.');
       }

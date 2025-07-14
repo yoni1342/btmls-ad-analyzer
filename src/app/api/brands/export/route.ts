@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     Text: ad.ad_text,
     CreatedAt: ad.created_at,
     BrandID: ad.brand_id,
-    AngleType: ad.angel_type ?? '',
+    AngleType: ad.angle_type ?? '',
   }));
 
   // Prepare Comments sheet
