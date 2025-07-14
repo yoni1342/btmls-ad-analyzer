@@ -53,11 +53,8 @@ export default function AdDetailPage() {
         }
         const data = await response.json();
         setAd(data.ad);
-        const commentsWithAngle: Comment[] = data.comments.map((comment: Comment) => ({
-          ...comment,
-          angle_type: data.ad.angle_type,
-        }));
-        setComments(commentsWithAngle);
+        // Comments now come with Angel Type and meta_cluster from the database function
+        setComments(data.comments);
         setClusters(data.clusters);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');

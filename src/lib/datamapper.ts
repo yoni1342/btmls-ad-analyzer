@@ -143,8 +143,9 @@ export function transformDataForDashboard(
       ],
     },
     topAds: top_performing_ads || [],
-    ads: (ads || []).map((ad: Ad) => ({
+    ads: (ads || []).map((ad: any) => ({
       ...ad,
+      angle_type: ad["Angel Type"], // Map "Angel Type" to angle_type for AdTable component
       comments: (comments || []).filter((c: Comment) => c.ad_id === ad.ad_id)
     })),
     allComments: comments || [],
