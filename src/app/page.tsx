@@ -7,7 +7,7 @@ export default function HomePage() {
      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 animate-fadeIn">
        <div className="container mx-auto px-4 py-12 text-center max-w-6xl">
          <img src="/logo.png" alt="Ad Analyzer Logo" className="mx-auto mb-6 w-20 h-20" />
-         <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-6 text-primary dark:text-primary-light leading-tight">
+         <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight bg-gradient-to-r from-blue-400 via-purple-500 to-blue-600 bg-clip-text text-transparent">
            Turn Ads & Comments into Actionable Insights
          </h1>
          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
