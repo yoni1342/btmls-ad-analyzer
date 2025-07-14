@@ -1,15 +1,41 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+
 import { useSearchParams } from 'next/navigation';
 import Dashboard from '../components/Dashboard';
 import SidebarLayout from '../components/SidebarLayout';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import FilterBar from '../components/FilterBar';
 import BrandSelector from '../components/BrandSelector';
 import { useAppStore } from '@/lib/store';
 import { getBrands, getBrandDashboardData } from '@/app/actions';
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace('/auth?mode=login');
+      } else {
+        setSession(data.session);
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, newSession) => {
+      if (!newSession) {
+        router.replace('/auth?mode=login');
+      } else {
+        setSession(newSession);
+      }
+    });
+    return () => { subscription.unsubscribe(); };
+  }, [router]);
+
+  if (!session) return null;
   return (
     <SidebarLayout>
       <Suspense fallback={
@@ -91,21 +117,7 @@ function DashboardContent() {
               : 'Overview of all brands and ads'}
           </p>
         </div>
-        <div className="mt-4 md:mt-0">
-          <button 
-            onClick={() => {
-              const url = new URL(window.location.href);
-              navigator.clipboard.writeText(url.toString());
-              alert('Dashboard link copied to clipboard!');
-            }}
-            className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-            </svg>
-            Share Dashboard
-          </button>
-        </div>
+        <div className="mt-4 md:mt-0"></div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">

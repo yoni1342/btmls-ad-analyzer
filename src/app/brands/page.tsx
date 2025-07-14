@@ -1,5 +1,9 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+
 import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useEffect, useState } from 'react';
@@ -15,6 +19,28 @@ import CommentTable from '../components/report/CommentTable';
 import MediaGrid from '../components/report/MediaGrid';
 
 export default function BrandsPage() {
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace('/auth?mode=login');
+      } else {
+        setSession(data.session);
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, newSession: Session | null) => {
+      if (!newSession) {
+        router.replace('/auth?mode=login');
+      } else {
+        setSession(newSession);
+      }
+    });
+    return () => { subscription.unsubscribe(); };
+  }, [router]);
+
+  if (!session) return null;
   return (
     <SidebarLayout>
       <Suspense fallback={<div className="container mx-auto py-8 px-4">Loading brands...</div>}>
@@ -54,6 +80,8 @@ function BrandsContent() {
     setAnalyzingStatus,
   } = useAppStore();
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
+  const [showExportPicker, setShowExportPicker] = useState(false);
+  const [exportRange, setExportRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
 
   useEffect(() => {
   if (initialBrand) {
@@ -132,7 +160,12 @@ function BrandsContent() {
   const handleUntrackedAdsClick = async () => {
     if (untrackedAdIds.length === 0 || !selectedBrand) return;
     try {
-      const response = await fetch('https://n8n.btmls.com/webhook/174ccec0-1203-4873-88de-af45302fb3e8', {
+      const adsWebhookUrl = process.env.NEXT_PUBLIC_ADS_WEBHOOK_URL;
+      if (!adsWebhookUrl) {
+        toast.error('Ads webhook URL is not configured.');
+        return;
+      }
+      const response = await fetch(adsWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ad_ids: untrackedAdIds, brand_id: selectedBrand.id }),
@@ -151,7 +184,12 @@ function BrandsContent() {
   const handleUntrackedCommentsClick = async () => {
     if (untrackedCommentIds.length === 0 || !selectedBrand) return;
     try {
-      const response = await fetch('https://n8n.btmls.com/webhook/5587ef6a-d610-4a48-98c4-9fe624619be7', {
+      const commentsWebhookUrl = process.env.NEXT_PUBLIC_COMMENTS_WEBHOOK_URL;
+      if (!commentsWebhookUrl) {
+        toast.error('Comments webhook URL is not configured.');
+        return;
+      }
+      const response = await fetch(commentsWebhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ comment_ids: untrackedCommentIds, brand_id: selectedBrand.id }),
@@ -174,13 +212,32 @@ function BrandsContent() {
           {selectedBrand ? `${selectedBrand.brand_name} Analytics` : 'Brand Analytics'}
         </h1>
         {selectedBrand && (
-          <div className="relative">
+          <div className="relative inline-block overflow-visible">
             <button
-              onClick={() => doExport(dateRange)}
+              onClick={() => { setExportRange({ startDate: dateRange.start, endDate: dateRange.end }); setShowExportPicker(prev => !prev); }}
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
             >
               Export
             </button>
+            {showExportPicker && (
+              <div className="absolute right-0 top-full mt-2 z-10 w-96">
+                <DateRangePicker
+                                   className="w-full"
+                                   initialRange={exportRange}
+                                   onChange={(range) => {
+                                     setExportRange(range);
+                                   }}
+                                 />
+                               <div className="mt-2">
+                                 <button
+                                   onClick={() => { doExport({ start: exportRange.startDate, end: exportRange.endDate }); setShowExportPicker(false); }}
+                                   className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                                 >
+                                   Download
+                                 </button>
+                               </div>
+</div>
+                             )}
             <button
               onClick={handleUntrackedAdsClick}
               className="ml-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
@@ -285,7 +342,12 @@ function BrandsContent() {
                     </div>
                   ) : brandData?.ads && brandData.ads.length > 0 ? (
                     <AdTable
-                      ads={brandData.ads}
+                      ads={brandData.ads.filter(ad =>
+                        !searchQuery ||
+                        (ad.ad_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                        (ad.ad_text?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                        (ad.ad_title?.toLowerCase().includes(searchQuery.toLowerCase()))
+                      )}
                       selectedAdIds={selectedAdIds}
                       onSelectedAdIdsChange={setSelectedAdIds}
                     />
@@ -308,7 +370,11 @@ function BrandsContent() {
                     </div>
                   ) : brandData?.allComments && brandData.allComments.length > 0 ? (
                     <CommentTable
-                    comments={brandData.allComments}
+                    comments={brandData.allComments.filter(comment =>
+                      !searchQuery ||
+                      comment.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      comment.theme?.toLowerCase().includes(searchQuery.toLowerCase())
+                    )}
                     ads={brandData.ads || []}
                     selectedAdIds={selectedAdIds}
                     />

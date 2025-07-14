@@ -5,7 +5,7 @@ import { getBrandDashboardData } from '@/app/actions';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const brand = url.searchParams.get('brand');
+  const brand = url.searchParams.get('brand_id');
   if (!brand) {
     return NextResponse.json({ error: 'Brand query parameter is required' }, { status: 400 });
   }
