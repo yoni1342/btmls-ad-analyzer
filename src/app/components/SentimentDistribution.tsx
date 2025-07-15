@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Pie, Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS } from 'chart.js';
 import ChartCard from './ChartCard';
 import PositiveIcon from './PositiveIcon';
 import NegativeIcon from './NegativeIcon';
@@ -94,6 +95,18 @@ export default function SentimentDistribution({
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    events: ['mousemove' as const, 'mouseout' as const, 'click' as const],
+    onHover: (event: any, elements: any[]) => {
+      if (elements && elements.length > 0) {
+        setHoveredIndex(elements[0].index);
+      } else {
+        setHoveredIndex(null);
+      }
+    },
+    interaction: {
+      intersect: false,
+      mode: 'nearest' as const,
+    },
     plugins: {
       legend: {
         position: 'bottom' as const,
@@ -204,11 +217,23 @@ export default function SentimentDistribution({
         )}
         
         {visualizationType === 'doughnut' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-3xl font-bold">
-              {totalCount ?? data.reduce((sum, val) => sum + val, 0)}
-            </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">Total</div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center transition-all duration-200">
+            {hoveredIndex !== null ? (
+              <>
+                <div className={`text-3xl font-bold ${hoveredIndex === 0 ? colors.positive.text : hoveredIndex === 1 ? colors.negative.text : colors.neutral.text}`}>
+                  {data[hoveredIndex]}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">{labels[hoveredIndex]}</div>
+                <div className="text-xs text-gray-400 dark:text-gray-500">{percentages[hoveredIndex]}</div>
+              </>
+            ) : (
+              <>
+                <div className="text-3xl font-bold">
+                  {totalCount ?? data.reduce((sum, val) => sum + val, 0)}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Total</div>
+              </>
+            )}
           </div>
         )}
       </div>

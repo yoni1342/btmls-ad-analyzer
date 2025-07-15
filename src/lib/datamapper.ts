@@ -152,7 +152,7 @@ export function transformDataForDashboard(
     allComments: comments || [],
     extendedAnalysis: {
     adCommentData: {
-              labels: (top_performing_ads || []).map((ad: any) => ad.ad_name),
+              labels: (top_performing_ads || []).map((ad: any) => ad.ad_id),
               datasets: [
                 {
                   label: 'Comment Count',
