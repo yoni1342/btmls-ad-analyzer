@@ -1,8 +1,21 @@
 'use client';
 
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '../lib/supabase';
 
 export default function HomePage() {
+  const router = useRouter();
+  const handleGetStarted = async () => {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+    if (session) {
+      router.push('/dashboard');
+    } else {
+      router.push('/auth?mode=signup');
+    }
+  };
   return (
      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 animate-fadeIn">
        <div className="container mx-auto px-4 py-12 text-center max-w-6xl">
@@ -13,13 +26,14 @@ export default function HomePage() {
          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
            Our AI-powered platform analyzes ads and their comments to provide you with sentiment analysis, trend tracking, and deep insights to optimize your campaigns.
          </p>
-         <Link
-           href="/auth?mode=signup"
+         <button
+           type="button"
+           onClick={handleGetStarted}
            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-10 rounded-xl shadow-xl transform hover:-translate-y-2 transition-all duration-300 text-xl border-2 border-blue-600 hover:border-blue-700 hover:shadow-2xl"
            style={{ color: 'white' }}
          >
            Get Started
-         </Link>
+         </button>
        </div>
 
        <div className="bg-white dark:bg-gray-800 py-16">
