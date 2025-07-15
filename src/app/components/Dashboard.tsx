@@ -237,17 +237,19 @@ export default function Dashboard({
           );
         })()}
       </div>
+
+      {/* Funnel Distribution Chart - Full Width */}
+      {data.ads && data.ads.length > 0 && (
+        <div className="mb-6">
+          <FunnelDistribution ads={data.ads} />
+        </div>
+      )}
       
       {/* Extended Analysis Section - only shown when showExtendedAnalysis is true */}
       {showExtendedAnalysis && (
         <div>
           <div className="mb-6">
-          {/* Funnel Distribution - Always show if we have ads */}
-          {data.ads && data.ads.length > 0 && (
-            <div className="mb-6">
-              <FunnelDistribution ads={data.ads} />
-            </div>
-          )}
+          <h3 className="text-lg font-medium mb-4">Advanced Analytics</h3>
           
           {data.extendedAnalysis && (
             <>
