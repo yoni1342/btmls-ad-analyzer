@@ -28,10 +28,9 @@ type AdTableProps = {
   ads: Ad[];
   selectedAdIds?: string[];
   onSelectedAdIdsChange?: (ids: string[]) => void;
-  onFunnelFilterChange?: (funnel: string) => void;
 };
 
-export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, onSelectedAdIdsChange, onFunnelFilterChange }: AdTableProps) {
+export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, onSelectedAdIdsChange }: AdTableProps) {
   // Support both controlled and uncontrolled selection
   const [uncontrolledSelectedAdIds, setUncontrolledSelectedAdIds] = useState<string[]>([]);
   const selectedAdIds = controlledSelectedAdIds ?? uncontrolledSelectedAdIds;
@@ -39,7 +38,6 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
 
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
-  const [funnelFilter, setFunnelFilter] = useState<string>('all');
   const router = useRouter();
   
   const columnHelper = createColumnHelper<Ad>();
@@ -197,34 +195,8 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
     }
   }, [selectedAdIds.length, ads.length]);
 
-  const handleFunnelFilterChange = (newFunnel: string) => {
-    setFunnelFilter(newFunnel);
-    if (onFunnelFilterChange) {
-      onFunnelFilterChange(newFunnel);
-    }
-  };
-
   return (
     <div>
-      {/* Filter Controls */}
-      <div className="mb-4 flex gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Filter by Funnel
-          </label>
-          <select
-            value={funnelFilter}
-            onChange={(e) => handleFunnelFilterChange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-          >
-            <option value="all">All Funnels</option>
-            <option value="TOF">TOF </option>
-            <option value="MOF">MOF </option>
-            <option value="BOF">BOF </option>
-          </select>
-        </div>
-      </div>
-
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white dark:bg-gray-800">
           <thead className="bg-gray-50 dark:bg-gray-700">

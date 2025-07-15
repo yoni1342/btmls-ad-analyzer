@@ -345,6 +345,25 @@ function BrandsContent() {
               <>
                 <h3 className="text-lg font-medium mb-4">All Ads</h3>
                 <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                  {/* Filter Controls */}
+                  <div className="mb-4 flex gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Filter by Funnel
+                      </label>
+                      <select
+                        value={funnel}
+                        onChange={(e) => setFunnel(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                      >
+                        <option value="all">All Funnels</option>
+                        <option value="TOF">TOF </option>
+                        <option value="MOF">MOF </option>
+                        <option value="BOF">BOF </option>
+                      </select>
+                    </div>
+                  </div>
+
                   {loading ? (
                     <div className="flex justify-center items-center h-64">
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
@@ -360,11 +379,10 @@ function BrandsContent() {
                       )}
                       selectedAdIds={selectedAdIds}
                       onSelectedAdIdsChange={setSelectedAdIds}
-                      onFunnelFilterChange={setFunnel}
                     />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      No ads found for this brand.
+                      No ads found for this brand with the selected filters.
                     </div>
                   )}
                 </div>
