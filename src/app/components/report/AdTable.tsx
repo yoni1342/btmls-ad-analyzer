@@ -20,6 +20,7 @@ interface Ad {
   image_url?: string;
   video_url?: string;
   post_link?: string;
+  funnel?: string;
   comments?: any[];
 }
 
@@ -27,9 +28,10 @@ type AdTableProps = {
   ads: Ad[];
   selectedAdIds?: string[];
   onSelectedAdIdsChange?: (ids: string[]) => void;
+  onFunnelFilterChange?: (funnel: string) => void;
 };
 
-export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, onSelectedAdIdsChange }: AdTableProps) {
+export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, onSelectedAdIdsChange, onFunnelFilterChange }: AdTableProps) {
   // Support both controlled and uncontrolled selection
   const [uncontrolledSelectedAdIds, setUncontrolledSelectedAdIds] = useState<string[]>([]);
   const selectedAdIds = controlledSelectedAdIds ?? uncontrolledSelectedAdIds;
@@ -37,6 +39,7 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
 
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
+  const [funnelFilter, setFunnelFilter] = useState<string>('all');
   const router = useRouter();
   
   const columnHelper = createColumnHelper<Ad>();
@@ -99,6 +102,23 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
         return (
           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
             {angleType}
+          </span>
+        );
+      },
+    }),
+    columnHelper.accessor('funnel', {
+      header: 'Funnel',
+      cell: info => {
+        const funnel = info.getValue() || 'Unknown';
+        const colorMap = {
+          'TOF': 'bg-green-100 text-green-800',
+          'MOF': 'bg-yellow-100 text-yellow-800',
+          'BOF': 'bg-red-100 text-red-800',
+          'Unknown': 'bg-gray-100 text-gray-800'
+        };
+        return (
+          <span className={`px-2 py-1 rounded-full text-xs ${colorMap[funnel as keyof typeof colorMap] || colorMap.Unknown}`}>
+            {funnel}
           </span>
         );
       },
@@ -177,8 +197,34 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
     }
   }, [selectedAdIds.length, ads.length]);
 
+  const handleFunnelFilterChange = (newFunnel: string) => {
+    setFunnelFilter(newFunnel);
+    if (onFunnelFilterChange) {
+      onFunnelFilterChange(newFunnel);
+    }
+  };
+
   return (
     <div>
+      {/* Filter Controls */}
+      <div className="mb-4 flex gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Filter by Funnel
+          </label>
+          <select
+            value={funnelFilter}
+            onChange={(e) => handleFunnelFilterChange(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+          >
+            <option value="all">All Funnels</option>
+            <option value="TOF">TOF </option>
+            <option value="MOF">MOF </option>
+            <option value="BOF">BOF </option>
+          </select>
+        </div>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white dark:bg-gray-800">
           <thead className="bg-gray-50 dark:bg-gray-700">

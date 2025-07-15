@@ -58,6 +58,7 @@ function BrandsContent() {
     selectedBrand,
     dateRange,
     sentiment,
+    funnel,
     searchQuery,
     selectedTab,
     brandData,
@@ -72,6 +73,7 @@ function BrandsContent() {
     setSelectedBrand,
     setDateRange,
     setSentiment,
+    setFunnel,
     setSearchQuery,
     setSelectedTab,
     setBrandData,
@@ -112,7 +114,7 @@ function BrandsContent() {
       if (!selectedBrand) return;
         setLoading(true);
         try {
-            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, searchQuery);
+            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, searchQuery);
             setBrandData(result);
                           if (result.untracked_info) {
                             setUntrackedInfo({
@@ -136,7 +138,7 @@ function BrandsContent() {
     };
 
     fetchBrandData();
-  }, [selectedBrand, dateRange, sentiment, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
+  }, [selectedBrand, dateRange, sentiment, funnel, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
 
   const handleSelectBrand = (brand: { id: string; brand_name: string }) => {
     setSelectedBrand(brand.id === '' ? undefined : brand);
@@ -150,6 +152,9 @@ function BrandsContent() {
     }
     if (sentiment && sentiment !== 'all') {
       url += `&sentiment=${encodeURIComponent(sentiment)}`;
+    }
+    if (funnel && funnel !== 'all') {
+      url += `&funnel=${encodeURIComponent(funnel)}`;
     }
     if (searchQuery) {
       url += `&search=${encodeURIComponent(searchQuery)}`;
@@ -347,13 +352,15 @@ function BrandsContent() {
                   ) : brandData?.ads && brandData.ads.length > 0 ? (
                     <AdTable
                       ads={brandData.ads.filter(ad =>
-                        !searchQuery ||
+                        (!searchQuery ||
                         (ad.ad_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
                         (ad.ad_text?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                        (ad.ad_title?.toLowerCase().includes(searchQuery.toLowerCase()))
+                        (ad.ad_title?.toLowerCase().includes(searchQuery.toLowerCase()))) &&
+                        (funnel === 'all' || ad.funnel === funnel)
                       )}
                       selectedAdIds={selectedAdIds}
                       onSelectedAdIdsChange={setSelectedAdIds}
+                      onFunnelFilterChange={setFunnel}
                     />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">

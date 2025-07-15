@@ -6,6 +6,7 @@ export type AppState = {
   selectedBrand?: { id: string; brand_name: string };
   dateRange: { start: Date; end: Date };
   sentiment: string;
+  funnel: string;
   searchQuery: string;
   selectedTab: string;
   brandData: DashboardData | null;
@@ -21,6 +22,7 @@ export type AppState = {
   setSelectedBrand: (brand?: { id: string; brand_name: string }) => void;
   setDateRange: (range: { start: Date; end: Date }) => void;
   setSentiment: (sentiment: string) => void;
+  setFunnel: (funnel: string) => void;
   setSearchQuery: (query: string) => void;
   setSelectedTab: (tab: string) => void;
   setBrandData: (data: DashboardData | null) => void;
@@ -42,6 +44,7 @@ export const useAppStore = create<AppState>((set) => ({
     end: new Date(),
   },
   sentiment: 'all',
+  funnel: 'all',
   searchQuery: '',
   selectedTab: 'overview',
   brandData: null,
@@ -57,6 +60,7 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedBrand: (brand) => set({ selectedBrand: brand, selectedTab: 'overview', brandData: null }),
   setDateRange: (range) => set({ dateRange: range }),
   setSentiment: (sentiment) => set({ sentiment }),
+  setFunnel: (funnel) => set({ funnel }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedTab: (tab) => set({ selectedTab: tab }),
   setBrandData: (data) => set({ brandData: data }),
