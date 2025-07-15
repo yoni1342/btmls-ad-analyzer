@@ -6,6 +6,7 @@ import MediaGrid from './report/MediaGrid';
 import MetricCard from './MetricCard';
 import SentimentDistribution from './SentimentDistribution';
 import CommentTrends from './CommentTrends';
+import FunnelDistribution from './FunnelDistribution';
 import { Pie, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -238,63 +239,72 @@ export default function Dashboard({
       </div>
       
       {/* Extended Analysis Section - only shown when showExtendedAnalysis is true */}
-      {showExtendedAnalysis && data.extendedAnalysis && (
+      {showExtendedAnalysis && (
         <div>
           <div className="mb-6">
-          <h3 className="text-lg font-medium mb-4">Advanced Analytics</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Angle Type Distribution */}
-            {data.extendedAnalysis.angleTypeData && (
-              <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-                <h4 className="text-base font-medium mb-4">Angle Type Distribution</h4>
-                <div className="h-64">
-                  <Pie 
-                    data={data.extendedAnalysis.angleTypeData} 
-                    options={{ responsive: true, maintainAspectRatio: false }} 
-                  />
-                </div>
-              </div>
-            )}
-            
-            {/* Comment Cluster Analysis */}
-            {data.extendedAnalysis.clusterData && (
-              <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-                <h4 className="text-base font-medium mb-4">Top Comment Clusters</h4>
-                <div className="h-64">
-                  <Bar 
-                    data={data.extendedAnalysis.clusterData} 
-                    options={{
-                      indexAxis: 'y',
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: { display: false }
-                      }
-                    }} 
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* Ads with Most Comments */}
-          {data.extendedAnalysis.adCommentData && (
-            <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-              <h4 className="text-base font-medium mb-4">Ads with Most Comments</h4>
-              <div className="h-64">
-                <Bar 
-                  data={data.extendedAnalysis.adCommentData} 
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                      legend: { display: false }
-                    }
-                  }} 
-                />
-              </div>
+          {/* Funnel Distribution - Always show if we have ads */}
+          {data.ads && data.ads.length > 0 && (
+            <div className="mb-6">
+              <FunnelDistribution ads={data.ads} />
             </div>
+          )}
+          
+          {data.extendedAnalysis && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {/* Angle Type Distribution */}
+                {data.extendedAnalysis.angleTypeData && (
+                  <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                    <h4 className="text-base font-medium mb-4">Angle Type Distribution</h4>
+                    <div className="h-64">
+                      <Pie
+                        data={data.extendedAnalysis.angleTypeData}
+                        options={{ responsive: true, maintainAspectRatio: false }}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Comment Cluster Analysis */}
+                {data.extendedAnalysis.clusterData && (
+                  <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                    <h4 className="text-base font-medium mb-4">Top Comment Clusters</h4>
+                    <div className="h-64">
+                      <Bar
+                        data={data.extendedAnalysis.clusterData}
+                        options={{
+                          indexAxis: 'y',
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { display: false }
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Ads with Most Comments */}
+              {data.extendedAnalysis.adCommentData && (
+                <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                  <h4 className="text-base font-medium mb-4">Ads with Most Comments</h4>
+                  <div className="h-64">
+                    <Bar
+                      data={data.extendedAnalysis.adCommentData}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { display: false }
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           )}
          
          </div>
