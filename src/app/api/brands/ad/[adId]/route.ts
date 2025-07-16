@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { transformDataForDashboard } from '@/lib/datamapper';
 
-export async function GET(request: Request, { params }: { params: { adId: string } }) {
-  const { adId } = params;
+export async function GET(request: Request, { params }: { params: Promise<{ adId: string }> }) {
+  const { adId } = await params;
 
   if (!adId) {
     return NextResponse.json({ error: 'Ad ID is required' }, { status: 400 });

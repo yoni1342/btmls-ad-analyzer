@@ -58,6 +58,7 @@ function BrandsContent() {
     selectedBrand,
     dateRange,
     sentiment,
+    funnel,
     searchQuery,
     selectedTab,
     brandData,
@@ -72,6 +73,7 @@ function BrandsContent() {
     setSelectedBrand,
     setDateRange,
     setSentiment,
+    setFunnel,
     setSearchQuery,
     setSelectedTab,
     setBrandData,
@@ -112,7 +114,7 @@ function BrandsContent() {
       if (!selectedBrand) return;
         setLoading(true);
         try {
-            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, searchQuery);
+            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, searchQuery);
             setBrandData(result);
                           if (result.untracked_info) {
                             setUntrackedInfo({
@@ -136,7 +138,7 @@ function BrandsContent() {
     };
 
     fetchBrandData();
-  }, [selectedBrand, dateRange, sentiment, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
+  }, [selectedBrand, dateRange, sentiment, funnel, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
 
   const handleSelectBrand = (brand: { id: string; brand_name: string }) => {
     setSelectedBrand(brand.id === '' ? undefined : brand);
@@ -150,6 +152,9 @@ function BrandsContent() {
     }
     if (sentiment && sentiment !== 'all') {
       url += `&sentiment=${encodeURIComponent(sentiment)}`;
+    }
+    if (funnel && funnel !== 'all') {
+      url += `&funnel=${encodeURIComponent(funnel)}`;
     }
     if (searchQuery) {
       url += `&search=${encodeURIComponent(searchQuery)}`;
@@ -340,6 +345,25 @@ function BrandsContent() {
               <>
                 <h3 className="text-lg font-medium mb-4">All Ads</h3>
                 <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                  {/* Filter Controls */}
+                  <div className="mb-4 flex gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Filter by Funnel
+                      </label>
+                      <select
+                        value={funnel}
+                        onChange={(e) => setFunnel(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                      >
+                        <option value="all">All Funnels</option>
+                        <option value="TOF">TOF </option>
+                        <option value="MOF">MOF </option>
+                        <option value="BOF">BOF </option>
+                      </select>
+                    </div>
+                  </div>
+
                   {loading ? (
                     <div className="flex justify-center items-center h-64">
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
@@ -347,17 +371,18 @@ function BrandsContent() {
                   ) : brandData?.ads && brandData.ads.length > 0 ? (
                     <AdTable
                       ads={brandData.ads.filter(ad =>
-                        !searchQuery ||
+                        (!searchQuery ||
                         (ad.ad_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
                         (ad.ad_text?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                        (ad.ad_title?.toLowerCase().includes(searchQuery.toLowerCase()))
+                        (ad.ad_title?.toLowerCase().includes(searchQuery.toLowerCase()))) &&
+                        (funnel === 'all' || ad.funnel === funnel)
                       )}
                       selectedAdIds={selectedAdIds}
                       onSelectedAdIdsChange={setSelectedAdIds}
                     />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      No ads found for this brand.
+                      No ads found for this brand with the selected filters.
                     </div>
                   )}
                 </div>

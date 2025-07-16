@@ -20,6 +20,7 @@ interface Ad {
   image_url?: string;
   video_url?: string;
   post_link?: string;
+  funnel?: string;
   comments?: any[];
 }
 
@@ -99,6 +100,23 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
         return (
           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
             {angleType}
+          </span>
+        );
+      },
+    }),
+    columnHelper.accessor('funnel', {
+      header: 'Funnel',
+      cell: info => {
+        const funnel = info.getValue() || 'Unknown';
+        const colorMap = {
+          'TOF': 'bg-green-100 text-green-800',
+          'MOF': 'bg-yellow-100 text-yellow-800',
+          'BOF': 'bg-red-100 text-red-800',
+          'Unknown': 'bg-gray-100 text-gray-800'
+        };
+        return (
+          <span className={`px-2 py-1 rounded-full text-xs ${colorMap[funnel as keyof typeof colorMap] || colorMap.Unknown}`}>
+            {funnel}
           </span>
         );
       },

@@ -146,12 +146,13 @@ export function transformDataForDashboard(
     ads: (ads || []).map((ad: any) => ({
       ...ad,
       angle_type: ad["Angel Type"], // Map "Angel Type" to angle_type for AdTable component
+      funnel: ad.funnel, // Include funnel field
       comments: (comments || []).filter((c: Comment) => c.ad_id === ad.ad_id)
     })),
     allComments: comments || [],
     extendedAnalysis: {
     adCommentData: {
-              labels: (top_performing_ads || []).map((ad: any) => ad.ad_name),
+              labels: (top_performing_ads || []).map((ad: any) => ad.ad_id),
               datasets: [
                 {
                   label: 'Comment Count',

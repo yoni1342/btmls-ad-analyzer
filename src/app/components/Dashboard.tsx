@@ -6,7 +6,9 @@ import MediaGrid from './report/MediaGrid';
 import MetricCard from './MetricCard';
 import SentimentDistribution from './SentimentDistribution';
 import CommentTrends from './CommentTrends';
+import FunnelDistribution from './FunnelDistribution';
 import { Pie, Bar } from 'react-chartjs-2';
+import { useRouter } from 'next/navigation';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -80,6 +82,7 @@ export default function Dashboard({
   error,
   showExtendedAnalysis = false
 }: DashboardProps) {
+  const router = useRouter();
 
   if (loading) {
     return (
@@ -209,92 +212,154 @@ export default function Dashboard({
         ))}
       </div>
       
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Comment Trends Chart */}
-        <CommentTrends
-          data={data.timeSeriesData}
-          chartType="line"
-          loading={loading}
-          showLegend={showExtendedAnalysis}
-          subtitle="Comment volume and sentiment over time"
-        />
+      {/* Charts Row - Dynamic Layout Based on Data Points */}
+      {(() => {
+        const dataPointCount = data.timeSeriesData.labels.length;
+        const shouldExpandChart = dataPointCount > 30;
         
-        {/* Sentiment Distribution Chart */}
-        { /* Pass actual total comments count to doughnut center */ }
-        {(() => {
-          const totalCommentsMetric = data.metrics.find(m => m.id === 'total_comments')?.value || 0;
+        if (shouldExpandChart) {
           return (
-            <SentimentDistribution
-              positive={positiveMetric}
-              negative={negativeMetric}
-              neutral={neutralMetric}
-              totalCount={totalCommentsMetric}
-              title="Sentiment Distribution"
-              subtitle="Overall sentiment breakdown of all comments"
-            />
+            <>
+              {/* Full Width Comment Trends Chart */}
+              <div className="mb-6">
+                <CommentTrends
+                  data={data.timeSeriesData}
+                  chartType="line"
+                  loading={loading}
+                  showLegend={showExtendedAnalysis}
+                  subtitle="Comment volume and sentiment over time"
+                  height="h-80"
+                />
+              </div>
+              
+              {/* Sentiment Distribution Chart */}
+              <div className="mb-6 flex justify-center">
+                <div className="w-full max-w-md">
+                  {(() => {
+                    const totalCommentsMetric = data.metrics.find(m => m.id === 'total_comments')?.value || 0;
+                    return (
+                      <SentimentDistribution
+                        positive={positiveMetric}
+                        negative={negativeMetric}
+                        neutral={neutralMetric}
+                        totalCount={totalCommentsMetric}
+                        title="Sentiment Distribution"
+                        subtitle="Overall sentiment breakdown of all comments"
+                      />
+                    );
+                  })()}
+                </div>
+              </div>
+            </>
           );
-        })()}
-      </div>
+        } else {
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Comment Trends Chart */}
+              <CommentTrends
+                data={data.timeSeriesData}
+                chartType="line"
+                loading={loading}
+                showLegend={showExtendedAnalysis}
+                subtitle="Comment volume and sentiment over time"
+              />
+              
+              {/* Sentiment Distribution Chart */}
+              {(() => {
+                const totalCommentsMetric = data.metrics.find(m => m.id === 'total_comments')?.value || 0;
+                return (
+                  <SentimentDistribution
+                    positive={positiveMetric}
+                    negative={negativeMetric}
+                    neutral={neutralMetric}
+                    totalCount={totalCommentsMetric}
+                    title="Sentiment Distribution"
+                    subtitle="Overall sentiment breakdown of all comments"
+                  />
+                );
+              })()}
+            </div>
+          );
+        }
+      })()}
+
+      {/* Funnel Distribution Chart - Full Width */}
+      {data.ads && data.ads.length > 0 && (
+        <div className="mb-6">
+          <FunnelDistribution ads={data.ads} />
+        </div>
+      )}
       
       {/* Extended Analysis Section - only shown when showExtendedAnalysis is true */}
-      {showExtendedAnalysis && data.extendedAnalysis && (
+      {showExtendedAnalysis && (
         <div>
           <div className="mb-6">
           <h3 className="text-lg font-medium mb-4">Advanced Analytics</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Angle Type Distribution */}
-            {data.extendedAnalysis.angleTypeData && (
-              <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-                <h4 className="text-base font-medium mb-4">Angle Type Distribution</h4>
-                <div className="h-64">
-                  <Pie 
-                    data={data.extendedAnalysis.angleTypeData} 
-                    options={{ responsive: true, maintainAspectRatio: false }} 
-                  />
+          {data.extendedAnalysis && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {/* Angle Type Distribution */}
+                {data.extendedAnalysis.angleTypeData && (
+                  <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                    <h4 className="text-base font-medium mb-4">Angle Type Distribution</h4>
+                    <div className="h-64">
+                      <Pie
+                        data={data.extendedAnalysis.angleTypeData}
+                        options={{ responsive: true, maintainAspectRatio: false }}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Comment Cluster Analysis */}
+                {data.extendedAnalysis.clusterData && (
+                  <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                    <h4 className="text-base font-medium mb-4">Top Comment Clusters</h4>
+                    <div className="h-64">
+                      <Bar
+                        data={data.extendedAnalysis.clusterData}
+                        options={{
+                          indexAxis: 'y',
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { display: false }
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Ads with Most Comments */}
+              {data.extendedAnalysis.adCommentData && (
+                <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                  <h4 className="text-base font-medium mb-4">Ads with Most Comments</h4>
+                  <div className="h-64">
+                    <Bar
+                      data={data.extendedAnalysis.adCommentData}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { display: false }
+                        },
+                        onClick: (event, elements) => {
+                          if (!elements.length) return;
+                          const index = elements[0].index;
+                          const adId = data.extendedAnalysis?.adCommentData?.labels[index];
+                          if (adId) {
+                            router.push(`/brands/ad/${adId}`);
+                          }
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
-            
-            {/* Comment Cluster Analysis */}
-            {data.extendedAnalysis.clusterData && (
-              <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-                <h4 className="text-base font-medium mb-4">Top Comment Clusters</h4>
-                <div className="h-64">
-                  <Bar 
-                    data={data.extendedAnalysis.clusterData} 
-                    options={{
-                      indexAxis: 'y',
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: { display: false }
-                      }
-                    }} 
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* Ads with Most Comments */}
-          {data.extendedAnalysis.adCommentData && (
-            <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-              <h4 className="text-base font-medium mb-4">Ads with Most Comments</h4>
-              <div className="h-64">
-                <Bar 
-                  data={data.extendedAnalysis.adCommentData} 
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                      legend: { display: false }
-                    }
-                  }} 
-                />
-              </div>
-            </div>
+              )}
+            </>
           )}
          
          </div>

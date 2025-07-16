@@ -19,6 +19,7 @@ export type Ad = {
   angel_type: string;
   explanation: string;
   comment: string;
+  funnel?: string;
   angle_type?: string;
 };
 

@@ -58,11 +58,13 @@ function DashboardContent() {
     selectedBrand,
     dateRange,
     sentiment,
+    funnel,
     searchQuery,
     setBrands,
     setSelectedBrand,
     setDateRange,
     setSentiment,
+    setFunnel,
     setSearchQuery,
     setBrandData,
     brandData,
@@ -78,7 +80,7 @@ function DashboardContent() {
     const fetchDashboardData = async () => {
         setLoading(true);
         try {
-            const data = await getBrandDashboardData(selectedBrand?.id, dateRange, sentiment);
+            const data = await getBrandDashboardData(selectedBrand?.id, dateRange, sentiment, funnel);
             setBrandData(data);
         } catch (error) {
             console.error(error)
@@ -87,7 +89,7 @@ function DashboardContent() {
         }
     }
     fetchDashboardData();
-  }, [selectedBrand, dateRange, sentiment, setBrandData, setLoading]);
+  }, [selectedBrand, dateRange, sentiment, funnel, setBrandData, setLoading]);
 
 
   const handleBrandSelect = (brand: { id: string; brand_name: string }) => {
