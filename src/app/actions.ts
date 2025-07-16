@@ -22,6 +22,7 @@ export async function getBrandDashboardData(
   dateRange?: { start: Date; end: Date },
   sentiment?: string,
   funnel?: string,
+  angel?: string,
   searchQuery?: string
 ) {
   const { data, error } = await supabase.rpc('get_dashboard_data', {
@@ -29,7 +30,8 @@ export async function getBrandDashboardData(
   start_date_param: dateRange?.start.toISOString(),
   end_date_param: dateRange?.end.toISOString(),
       sentiment_param: sentiment,
-      funnel_param: funnel
+      funnel_param: funnel,
+      angel_param: angel
   });
 
   if (error) {

@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     const endDateStr = url.searchParams.get('endDate');
     const sentiment = url.searchParams.get('sentiment') || undefined;
     const funnel = url.searchParams.get('funnel') || undefined;
+    const angel = url.searchParams.get('angel') || undefined;
     // Parse dates
     const startDate = startDateStr ? new Date(startDateStr) : undefined;
     const endDate = endDateStr ? new Date(endDateStr) : undefined;
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
       end_date_param: endDate ? endDate.toISOString() : null,
       sentiment_param: sentiment || null,
       funnel_param: funnel || null,
+      angel_param: angel || null,
     });
     if (error) throw error;
 
@@ -39,6 +41,7 @@ export async function GET(request: Request) {
         endDate: endDate?.toISOString() || null,
         sentiment,
         funnel,
+        angel,
       },
       data: dashboardData,
       timestamp: new Date().toISOString(),

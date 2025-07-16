@@ -59,6 +59,7 @@ function BrandsContent() {
     dateRange,
     sentiment,
     funnel,
+    angel,
     searchQuery,
     selectedTab,
     brandData,
@@ -74,6 +75,7 @@ function BrandsContent() {
     setDateRange,
     setSentiment,
     setFunnel,
+    setAngel,
     setSearchQuery,
     setSelectedTab,
     setBrandData,
@@ -114,7 +116,7 @@ function BrandsContent() {
       if (!selectedBrand) return;
         setLoading(true);
         try {
-            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, searchQuery);
+            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, angel, searchQuery);
             setBrandData(result);
                           if (result.untracked_info) {
                             setUntrackedInfo({
@@ -138,7 +140,7 @@ function BrandsContent() {
     };
 
     fetchBrandData();
-  }, [selectedBrand, dateRange, sentiment, funnel, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
+  }, [selectedBrand, dateRange, sentiment, funnel, angel, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
 
   const handleSelectBrand = (brand: { id: string; brand_name: string }) => {
     setSelectedBrand(brand.id === '' ? undefined : brand);
@@ -155,6 +157,9 @@ function BrandsContent() {
     }
     if (funnel && funnel !== 'all') {
       url += `&funnel=${encodeURIComponent(funnel)}`;
+    }
+    if (angel && angel !== 'all') {
+      url += `&angel=${encodeURIComponent(angel)}`;
     }
     if (searchQuery) {
       url += `&search=${encodeURIComponent(searchQuery)}`;
@@ -362,6 +367,21 @@ function BrandsContent() {
                         <option value="BOF">BOF </option>
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Filter by Angel
+                      </label>
+                      <select
+                        value={angel}
+                        onChange={(e) => setAngel(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                      >
+                        <option value="all">All Angels</option>
+                        {brandData?.ads && Array.from(new Set(brandData.ads.map(ad => ad.angle_type || 'Unknown'))).map(angelType => (
+                          <option key={angelType} value={angelType}>{angelType}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   {loading ? (
@@ -375,7 +395,8 @@ function BrandsContent() {
                         (ad.ad_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
                         (ad.ad_text?.toLowerCase().includes(searchQuery.toLowerCase())) ||
                         (ad.ad_title?.toLowerCase().includes(searchQuery.toLowerCase()))) &&
-                        (funnel === 'all' || ad.funnel === funnel)
+                        (funnel === 'all' || ad.funnel === funnel) &&
+                        (angel === 'all' || ad.angle_type === angel)
                       )}
                       selectedAdIds={selectedAdIds}
                       onSelectedAdIdsChange={setSelectedAdIds}
