@@ -279,7 +279,7 @@ function BrandsContent() {
       {!selectedBrand ? (
         <>
           <p className="text-gray-500 dark:text-gray-400 mb-6">
-            Select a brand to view detailed analytics test text
+            Select a brand to view detailed analytics test text 2
           </p>
           <BrandSelector
             brands={brands}
