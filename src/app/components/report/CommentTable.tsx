@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { saveAs } from 'file-saver';
+import { useAppStore } from '@/lib/store';
 import {
   createColumnHelper,
   flexRender,
@@ -43,6 +45,8 @@ type CommentTableProps = {
 };
 
 export default function CommentTable({ comments, ads = [], selectedAdIds, clusters = [], clusterComments = [] }: CommentTableProps) {
+  const { selectedBrand, searchQuery } = useAppStore();
+
   const filteredByAd = useMemo(() => {
     if (selectedAdIds && selectedAdIds.length > 0) {
       return comments.filter(c => selectedAdIds.includes(c.ad_id || ''));
@@ -382,6 +386,43 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
     );
   };
 
+  const handleExport = async () => {
+    if (!selectedBrand) {
+      alert('Please select a brand first.');
+      return;
+    }
+
+    const exportData = {
+      brandId: selectedBrand.id,
+      adIds: selectedAdIds,
+      sentiment: sentimentFilter,
+      cluster: clusterFilter,
+      angel: angleTypeFilter,
+      searchQuery: searchQuery,
+    };
+
+    try {
+      const response = await fetch('/api/brands/comments/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(exportData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export data');
+      }
+
+      const blob = await response.blob();
+      saveAs(blob, `comments-export.xlsx`);
+
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('An error occurred during export.');
+    }
+  };
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap gap-4">
@@ -428,8 +469,17 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
             ))}
           </select>
         </div>
+         <div>
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
+            disabled={!selectedBrand || table.getFilteredRowModel().rows.length === 0}
+          >
+            Export to Excel
+          </button>
+        </div>
       </div>
-      
+        
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white dark:bg-gray-800">
           <thead className="bg-gray-50 dark:bg-gray-700">
@@ -550,4 +600,4 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
       {showModal && <AdDetailModal />}
     </div>
   );
-} 
+}

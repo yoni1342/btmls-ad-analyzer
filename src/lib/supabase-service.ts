@@ -32,6 +32,10 @@ export type Comment = {
   created_at: string;
   theme: string;
   sentiment: string;
+  ad_title?: string;
+  meta_cluster?: string;
+  'Angel Type'?: string;
+  funnel?: string;
 };
 
 export type CommentCluster = {
