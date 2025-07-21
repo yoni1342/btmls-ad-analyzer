@@ -6,13 +6,15 @@ import { Comment } from '@/lib/supabase-service';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { 
-        brandId, 
-        adIds, 
-        sentiment, 
-        cluster, 
-        angel, 
-        searchQuery 
+    const {
+        brandId,
+        adIds,
+        sentiment,
+        cluster,
+        angel,
+        searchQuery,
+        startDate,
+        endDate
     } = body;
 
     if (!brandId) {
@@ -25,7 +27,9 @@ export async function POST(request: Request) {
         sentiment_param: sentiment || null,
         cluster_param: cluster || null,
         angel_param: angel || null,
-        search_query_param: searchQuery || null
+        search_query_param: searchQuery || null,
+        start_date_param: startDate || null,
+        end_date_param: endDate || null
     });
 
     if (error) {

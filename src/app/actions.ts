@@ -120,3 +120,31 @@ export async function getBrandDashboardData(
  
   return transformedData;
 }
+
+export async function getFilteredComments(
+  brandId: string,
+  adIds?: string[],
+  sentiment?: string,
+  cluster?: string,
+  angel?: string,
+  searchQuery?: string,
+  dateRange?: { start: Date; end: Date }
+) {
+  const { data, error } = await supabase.rpc('get_filtered_data', {
+    brand_id_param: parseInt(brandId, 10),
+    ad_ids_param: adIds && adIds.length > 0 ? adIds : null,
+    sentiment_param: sentiment,
+    cluster_param: cluster,
+    angel_param: angel,
+    search_query_param: searchQuery,
+    start_date_param: dateRange?.start.toISOString(),
+    end_date_param: dateRange?.end.toISOString()
+  });
+
+  if (error) {
+    console.error('Error fetching filtered comments:', error);
+    throw error;
+  }
+
+  return data || [];
+}

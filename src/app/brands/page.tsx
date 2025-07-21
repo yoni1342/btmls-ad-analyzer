@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { getBrands, getBrandDashboardData } from '@/app/actions';
+import { getBrands, getBrandDashboardData, getFilteredComments } from '@/app/actions';
 import { useAppStore } from '@/lib/store';
 import BrandSelector from '../components/BrandSelector';
 import FilterBar from '../components/FilterBar';
@@ -84,8 +84,15 @@ function BrandsContent() {
     setAnalyzingStatus,
   } = useAppStore();
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
-  const [showExportPicker, setShowExportPicker] = useState(false);
-  const [exportRange, setExportRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportAdsRange, setExportAdsRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
+  const [exportCommentsRange, setExportCommentsRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
+  const [filteredComments, setFilteredComments] = useState<any[]>([]);
+  
+  // Comment table specific filters
+  const [commentSentimentFilter, setCommentSentimentFilter] = useState('');
+  const [commentClusterFilter, setCommentClusterFilter] = useState('');
+  const [commentAngleTypeFilter, setCommentAngleTypeFilter] = useState('');
 
   useEffect(() => {
   if (initialBrand) {
@@ -142,29 +149,94 @@ function BrandsContent() {
     fetchBrandData();
   }, [selectedBrand, dateRange, sentiment, funnel, angel, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
 
+  // Separate effect for fetching filtered comments when on comments tab
+  useEffect(() => {
+    const fetchFilteredComments = async () => {
+      if (!selectedBrand || selectedTab !== 'comments') return;
+      
+      setLoading(true);
+      try {
+        // Get ad IDs to filter by (either selected ads or all ads from current view)
+        const adIdsToFilter = selectedAdIds.length > 0
+          ? selectedAdIds
+          : brandData?.ads?.map(ad => ad.ad_id) || [];
+        
+        const comments = await getFilteredComments(
+          selectedBrand.id,
+          adIdsToFilter.length > 0 ? adIdsToFilter : undefined,
+          commentSentimentFilter || undefined,
+          commentClusterFilter || undefined,
+          commentAngleTypeFilter || undefined,
+          searchQuery,
+          dateRange // Use page date filter for comments when on comments tab
+        );
+        setFilteredComments(comments);
+      } catch (err) {
+        console.error('Error fetching filtered comments:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFilteredComments();
+  }, [selectedBrand, selectedTab, dateRange, commentSentimentFilter, commentAngleTypeFilter, commentClusterFilter, searchQuery, selectedAdIds, brandData?.ads, setLoading]);
+
   const handleSelectBrand = (brand: { id: string; brand_name: string }) => {
     setSelectedBrand(brand.id === '' ? undefined : brand);
   };
 
-  const doExport = (range: { start: Date; end: Date }) => {
+  const doExport = async () => {
     if (!selectedBrand) return;
-    let url = `/api/brands/export?brand_id=${encodeURIComponent(selectedBrand.id)}`;
-    if (range) {
-      url += `&startDate=${range.start.toISOString()}&endDate=${range.end.toISOString()}`;
+    
+    try {
+      const exportData = {
+        brandId: selectedBrand.id,
+        adsDateRange: {
+          startDate: exportAdsRange.startDate.toISOString(),
+          endDate: exportAdsRange.endDate.toISOString()
+        },
+        commentsDateRange: {
+          startDate: exportCommentsRange.startDate.toISOString(),
+          endDate: exportCommentsRange.endDate.toISOString()
+        },
+        sentiment: sentiment && sentiment !== 'all' ? sentiment : undefined,
+        funnel: funnel && funnel !== 'all' ? funnel : undefined,
+        angel: angel && angel !== 'all' ? angel : undefined,
+        searchQuery: searchQuery || undefined,
+        selectedAdIds: selectedAdIds.length > 0 ? selectedAdIds : undefined,
+        // Comment-specific filters
+        commentSentiment: commentSentimentFilter || undefined,
+        commentCluster: commentClusterFilter || undefined,
+        commentAngelType: commentAngleTypeFilter || undefined
+      };
+
+      const response = await fetch('/api/brands/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(exportData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export data');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `brand-${selectedBrand.id}-export.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      setShowExportModal(false);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed. Please try again.');
     }
-    if (sentiment && sentiment !== 'all') {
-      url += `&sentiment=${encodeURIComponent(sentiment)}`;
-    }
-    if (funnel && funnel !== 'all') {
-      url += `&funnel=${encodeURIComponent(funnel)}`;
-    }
-    if (angel && angel !== 'all') {
-      url += `&angel=${encodeURIComponent(angel)}`;
-    }
-    if (searchQuery) {
-      url += `&search=${encodeURIComponent(searchQuery)}`;
-    }
-    window.open(url, '_blank');
   };
 
   const handleUntrackedAdsClick = async () => {
@@ -226,32 +298,17 @@ function BrandsContent() {
           {selectedBrand ? `${selectedBrand.brand_name} Analytics` : 'Brand Analytics'}
         </h1>
         {selectedBrand && (
-          <div className="relative inline-block overflow-visible">
+          <div className="flex gap-2">
             <button
-              onClick={() => { setExportRange({ startDate: dateRange.start, endDate: dateRange.end }); setShowExportPicker(prev => !prev); }}
+              onClick={() => {
+                setExportAdsRange({ startDate: dateRange.start, endDate: dateRange.end });
+                setExportCommentsRange({ startDate: dateRange.start, endDate: dateRange.end });
+                setShowExportModal(true);
+              }}
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
             >
               Export
             </button>
-            {showExportPicker && (
-              <div className="absolute right-0 top-full mt-2 z-10 w-96">
-                <DateRangePicker
-                                   className="w-full"
-                                   initialRange={exportRange}
-                                   onChange={(range) => {
-                                     setExportRange(range);
-                                   }}
-                                 />
-                               <div className="mt-2">
-                                 <button
-                                   onClick={() => { doExport({ start: exportRange.startDate, end: exportRange.endDate }); setShowExportPicker(false); }}
-                                   className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-                                 >
-                                   Download
-                                 </button>
-                               </div>
-</div>
-                             )}
             <button
               onClick={handleUntrackedAdsClick}
               className="ml-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
@@ -418,15 +475,17 @@ function BrandsContent() {
                     <div className="flex justify-center items-center h-64">
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
                     </div>
-                  ) : brandData?.allComments && brandData.allComments.length > 0 ? (
+                  ) : filteredComments && filteredComments.length > 0 ? (
                     <CommentTable
-                    comments={brandData.allComments.filter(comment =>
-                      !searchQuery ||
-                      comment.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      comment.theme?.toLowerCase().includes(searchQuery.toLowerCase())
-                    )}
-                    ads={brandData.ads || []}
+                    comments={filteredComments}
+                    ads={brandData?.ads || []}
                     selectedAdIds={selectedAdIds}
+                    sentimentFilter={commentSentimentFilter}
+                    setSentimentFilter={setCommentSentimentFilter}
+                    clusterFilter={commentClusterFilter}
+                    setClusterFilter={setCommentClusterFilter}
+                    angleTypeFilter={commentAngleTypeFilter}
+                    setAngleTypeFilter={setCommentAngleTypeFilter}
                     />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -457,6 +516,134 @@ function BrandsContent() {
             )}
           </div>
         </>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Export Brand Data
+                </h3>
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Ads Date Range */}
+                <div>
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+                    Ads Date Range
+                  </h4>
+                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    <DateRangePicker
+                      className="w-full"
+                      initialRange={exportAdsRange}
+                      onChange={(range) => {
+                        setExportAdsRange(range);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Comments Date Range */}
+                <div>
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+                    Comments Date Range
+                  </h4>
+                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    <DateRangePicker
+                      className="w-full"
+                      initialRange={exportCommentsRange}
+                      onChange={(range) => {
+                        setExportCommentsRange(range);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Export Summary */}
+                <div className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                    Export Summary
+                  </h4>
+                  <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                    <div>
+                      <strong>Brand:</strong> {selectedBrand?.brand_name}
+                    </div>
+                    <div>
+                      <strong>Selected Ads:</strong> {selectedAdIds.length > 0 ? `${selectedAdIds.length} ads selected` : 'All visible ads'}
+                    </div>
+                    <div>
+                      <strong>Ads Period:</strong> {exportAdsRange.startDate.toLocaleDateString()} - {exportAdsRange.endDate.toLocaleDateString()}
+                    </div>
+                    <div>
+                      <strong>Comments Period:</strong> {exportCommentsRange.startDate.toLocaleDateString()} - {exportCommentsRange.endDate.toLocaleDateString()}
+                    </div>
+                    {(sentiment && sentiment !== 'all') && (
+                      <div>
+                        <strong>Sentiment Filter:</strong> {sentiment}
+                      </div>
+                    )}
+                    {(funnel && funnel !== 'all') && (
+                      <div>
+                        <strong>Funnel Filter:</strong> {funnel}
+                      </div>
+                    )}
+                    {(angel && angel !== 'all') && (
+                      <div>
+                        <strong>Angel Filter:</strong> {angel}
+                      </div>
+                    )}
+                    {searchQuery && (
+                      <div>
+                        <strong>Search Query:</strong> "{searchQuery}"
+                      </div>
+                    )}
+                    {commentSentimentFilter && (
+                      <div>
+                        <strong>Comment Sentiment Filter:</strong> {commentSentimentFilter}
+                      </div>
+                    )}
+                    {commentClusterFilter && (
+                      <div>
+                        <strong>Comment Cluster Filter:</strong> {commentClusterFilter}
+                      </div>
+                    )}
+                    {commentAngleTypeFilter && (
+                      <div>
+                        <strong>Comment Angel Type Filter:</strong> {commentAngleTypeFilter}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={doExport}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Export to Excel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

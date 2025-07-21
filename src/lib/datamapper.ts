@@ -147,7 +147,7 @@ export function transformDataForDashboard(
       ...ad,
       angle_type: ad["Angel Type"], // Map "Angel Type" to angle_type for AdTable component
       funnel: ad.funnel, // Include funnel field
-      comments: (comments || []).filter((c: Comment) => c.ad_id === ad.ad_id)
+      total_comments: ad.total_comments || 0 // Use unfiltered comment count from database
     })),
     allComments: comments || [],
     extendedAnalysis: {

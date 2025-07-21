@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { saveAs } from 'file-saver';
 import { useAppStore } from '@/lib/store';
 import {
   createColumnHelper,
@@ -42,10 +41,29 @@ type CommentTableProps = {
   selectedAdIds?: string[]; // For future extensibility, not used for filtering here
   clusters?: any[];
   clusterComments?: any[];
+  // Comment-specific filters managed by parent
+  sentimentFilter: string;
+  setSentimentFilter: (value: string) => void;
+  clusterFilter: string;
+  setClusterFilter: (value: string) => void;
+  angleTypeFilter: string;
+  setAngleTypeFilter: (value: string) => void;
 };
 
-export default function CommentTable({ comments, ads = [], selectedAdIds, clusters = [], clusterComments = [] }: CommentTableProps) {
-  const { selectedBrand, searchQuery } = useAppStore();
+export default function CommentTable({
+  comments,
+  ads = [],
+  selectedAdIds,
+  clusters = [],
+  clusterComments = [],
+  sentimentFilter,
+  setSentimentFilter,
+  clusterFilter,
+  setClusterFilter,
+  angleTypeFilter,
+  setAngleTypeFilter
+}: CommentTableProps) {
+  const { selectedBrand, searchQuery, dateRange } = useAppStore();
 
   const filteredByAd = useMemo(() => {
     if (selectedAdIds && selectedAdIds.length > 0) {
@@ -54,9 +72,6 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
     return comments;
   }, [comments, selectedAdIds]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [sentimentFilter, setSentimentFilter] = useState('');
-  const [clusterFilter, setClusterFilter] = useState('');
-  const [angleTypeFilter, setAngleTypeFilter] = useState('');
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 50,
@@ -386,42 +401,6 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
     );
   };
 
-  const handleExport = async () => {
-    if (!selectedBrand) {
-      alert('Please select a brand first.');
-      return;
-    }
-
-    const exportData = {
-      brandId: selectedBrand.id,
-      adIds: selectedAdIds,
-      sentiment: sentimentFilter,
-      cluster: clusterFilter,
-      angel: angleTypeFilter,
-      searchQuery: searchQuery,
-    };
-
-    try {
-      const response = await fetch('/api/brands/comments/export', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(exportData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to export data');
-      }
-
-      const blob = await response.blob();
-      saveAs(blob, `comments-export.xlsx`);
-
-    } catch (error) {
-      console.error('Export failed:', error);
-      alert('An error occurred during export.');
-    }
-  };
 
   return (
     <div>
@@ -468,15 +447,6 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
               </option>
             ))}
           </select>
-        </div>
-         <div>
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
-            disabled={!selectedBrand || table.getFilteredRowModel().rows.length === 0}
-          >
-            Export to Excel
-          </button>
         </div>
       </div>
         

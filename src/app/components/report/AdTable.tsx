@@ -21,7 +21,7 @@ interface Ad {
   video_url?: string;
   post_link?: string;
   funnel?: string;
-  comments?: any[];
+  total_comments?: number; // Total unfiltered comment count for this ad
 }
 
 type AdTableProps = {
@@ -169,9 +169,9 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
         </a>
       ) : 'No link',
     }),
-    columnHelper.accessor('comments', {
+    columnHelper.accessor('total_comments', {
       header: 'Comments',
-      cell: info => (info.getValue()?.length || 0) + ' comments',
+      cell: info => (info.getValue() || 0) + ' comments',
     })
   ];
 

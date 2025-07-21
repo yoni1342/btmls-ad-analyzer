@@ -21,6 +21,7 @@ export type Ad = {
   comment: string;
   funnel?: string;
   angle_type?: string;
+  total_comments?: number; // Total unfiltered comment count for this ad
 };
 
 export type Comment = {
