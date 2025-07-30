@@ -8,13 +8,15 @@ import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { getBrands, getBrandDashboardData, getFilteredComments } from '@/app/actions';
+import { getBrands, getBrandDashboardData, getFilteredComments, getCampaigns, getAdSets } from '@/app/actions';
 import { useAppStore } from '@/lib/store';
 import BrandSelector from '../components/BrandSelector';
 import FilterBar from '../components/FilterBar';
 import DateRangePicker from '../components/DateRangePicker';
 import Dashboard from '../components/Dashboard';
 import AdTable from '../components/report/AdTable';
+import CampaignTable from '../components/report/CampaignTable';
+import AdSetsTable from '../components/report/AdSetsTable';
 import CommentTable from '../components/report/CommentTable';
 import MediaGrid from '../components/report/MediaGrid';
 
@@ -84,6 +86,10 @@ function BrandsContent() {
     setAnalyzingStatus,
   } = useAppStore();
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
+  const [selectedAdSetIds, setSelectedAdSetIds] = useState<string[]>([]);
+  const [campaignsData, setCampaignsData] = useState<any[]>([]);
+  const [adSetsData, setAdSetsData] = useState<any[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportAdsRange, setExportAdsRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
   const [exportCommentsRange, setExportCommentsRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
@@ -148,6 +154,32 @@ function BrandsContent() {
 
     fetchBrandData();
   }, [selectedBrand, dateRange, sentiment, funnel, angel, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
+
+  // Fetch campaigns and ad sets data
+  useEffect(() => {
+    const fetchCampaignsAndAdSets = async () => {
+      if (!selectedBrand) {
+        setCampaignsData([]);
+        setAdSetsData([]);
+        return;
+      }
+
+      try {
+        const [campaigns, adSets] = await Promise.all([
+          getCampaigns(selectedBrand.id, dateRange),
+          getAdSets(selectedBrand.id, dateRange)
+        ]);
+        setCampaignsData(campaigns);
+        setAdSetsData(adSets);
+      } catch (err) {
+        console.error('Error fetching campaigns and ad sets:', err);
+        setCampaignsData([]);
+        setAdSetsData([]);
+      }
+    };
+
+    fetchCampaignsAndAdSets();
+  }, [selectedBrand, dateRange]);
 
   // Separate effect for fetching filtered comments when on comments tab
   useEffect(() => {
@@ -375,6 +407,18 @@ function BrandsContent() {
                   Overview
                 </button>
                 <button
+                  className={`py-2 px-4 ${selectedTab === 'campaigns' ? 'border-b-2 border-blue-500 font-medium text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                  onClick={() => setSelectedTab('campaigns')}
+                >
+                  Campaigns
+                </button>
+                <button
+                  className={`py-2 px-4 ${selectedTab === 'adsets' ? 'border-b-2 border-blue-500 font-medium text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                  onClick={() => setSelectedTab('adsets')}
+                >
+                  Ad Sets
+                </button>
+                <button
                   className={`py-2 px-4 ${selectedTab === 'ads' ? 'border-b-2 border-blue-500 font-medium text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
                   onClick={() => setSelectedTab('ads')}
                 >
@@ -401,6 +445,52 @@ function BrandsContent() {
                 loading={loading}
                 showExtendedAnalysis={true}
               />
+            )}
+
+            {selectedTab === 'campaigns' && (
+              <>
+                <h3 className="text-lg font-medium mb-4">All Campaigns</h3>
+                <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                  {loading ? (
+                    <div className="flex justify-center items-center h-64">
+                      <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+                    </div>
+                  ) : campaignsData && campaignsData.length > 0 ? (
+                    <CampaignTable
+                      campaigns={campaignsData}
+                      selectedCampaignIds={selectedCampaignIds}
+                      onSelectedCampaignIdsChange={setSelectedCampaignIds}
+                    />
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      No campaigns found for this brand.
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {selectedTab === 'adsets' && (
+              <>
+                <h3 className="text-lg font-medium mb-4">All Ad Sets</h3>
+                <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                  {loading ? (
+                    <div className="flex justify-center items-center h-64">
+                      <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+                    </div>
+                  ) : adSetsData && adSetsData.length > 0 ? (
+                    <AdSetsTable
+                      adSets={adSetsData}
+                      selectedAdSetIds={selectedAdSetIds}
+                      onSelectedAdSetIdsChange={setSelectedAdSetIds}
+                    />
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      No ad sets found for this brand.
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             {selectedTab === 'ads' && (

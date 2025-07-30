@@ -148,3 +148,39 @@ export async function getFilteredComments(
 
   return data || [];
 }
+
+export async function getCampaigns(
+  brandId: string,
+  dateRange?: { start: Date; end: Date }
+) {
+  const { data, error } = await supabase.rpc('get_campaigns_data', {
+    brand_id_param: parseInt(brandId, 10),
+    start_date_param: dateRange?.start.toISOString(),
+    end_date_param: dateRange?.end.toISOString()
+  });
+
+  if (error) {
+    console.error('Error fetching campaigns:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getAdSets(
+  brandId: string,
+  dateRange?: { start: Date; end: Date }
+) {
+  const { data, error } = await supabase.rpc('get_ad_sets_data', {
+    brand_id_param: parseInt(brandId, 10),
+    start_date_param: dateRange?.start.toISOString(),
+    end_date_param: dateRange?.end.toISOString()
+  });
+
+  if (error) {
+    console.error('Error fetching ad sets:', error);
+    throw error;
+  }
+
+  return data || [];
+}
