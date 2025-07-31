@@ -16,6 +16,129 @@ export async function getBrands() {
   return brands;
 }
 
+// Enhanced function to get all brands from both tables
+export async function getAllBrands() {
+  const { data, error } = await supabase.rpc('get_all_brands');
+
+  if (error) throw error;
+
+  const brands = data || [];
+  revalidatePath('/brands');
+  return brands;
+}
+
+// Enhanced function to get dashboard data for both old and new brands
+export async function getEnhancedBrandDashboardData(
+  brandId?: string,
+  dateRange?: { start: Date; end: Date },
+  sentiment?: string,
+  funnel?: string,
+  angel?: string,
+  searchQuery?: string,
+  sourceTable?: string
+) {
+  const { data, error } = await supabase.rpc('get_enhanced_dashboard_data', {
+    brand_id_param: brandId,
+    start_date_param: dateRange?.start.toISOString(),
+    end_date_param: dateRange?.end.toISOString(),
+    sentiment_param: sentiment,
+    funnel_param: funnel,
+    angel_param: angel,
+    source_table_param: sourceTable
+  });
+
+  if (error) {
+    console.error('Error fetching enhanced dashboard data:', error);
+    throw error;
+  }
+  
+  // For ad_account brands, the data is already structured differently
+  if (data?.source_table === 'ad_account') {
+    return data;
+  }
+  
+  // For legacy brands, transform the data as before
+  const transformedData = transformDataForDashboard(data, dateRange);
+ 
+  const { data: comparisonData, error: comparisonError } = await supabase.rpc('get_sentiments_with_comparison', {
+  	brand_id_param: brandId ? parseInt(brandId, 10) : null,
+  	start_date_param: dateRange?.start.toISOString(),
+  	end_date_param: dateRange?.end.toISOString(),
+  	ad_ids_param: null,
+  	sentiment_param: sentiment,
+  	cluster_param: null,
+  	angel_param: angel,
+  	search_query_param: searchQuery
+  });
+ 
+  if (comparisonError) {
+  	console.error('Error fetching comparison data:', comparisonError);
+  	return transformedData;
+  }
+ 
+  if (comparisonData) {
+  	const calculatePercentageChange = (current: number, previous: number) => {
+  		if (previous === 0) {
+  			return current > 0 ? 100.0 : 0.0;
+  		}
+  		return ((current - previous) / previous) * 100;
+  	};
+ 
+  	const current_period_data = comparisonData.current_period || {};
+  	const previous_period_data = comparisonData.previous_period || {};
+ 
+  	// Update Total Ads
+  	const total_ads_change = calculatePercentageChange(current_period_data.total_ads || 0, previous_period_data.total_ads || 0);
+  	const totalAdsMetric = transformedData.metrics.find(m => m.id === 'total_ads');
+  	if (totalAdsMetric) totalAdsMetric.change = total_ads_change;
+ 
+  	// Update Total Comments (this will also be filtered by sentiment if a filter is active)
+  	const total_comments_change = calculatePercentageChange(current_period_data.total_comments || 0, previous_period_data.total_comments || 0);
+  	const totalCommentsMetric = transformedData.metrics.find(m => m.id === 'total_comments');
+  	if (totalCommentsMetric) totalCommentsMetric.change = total_comments_change;
+ 
+  	// --- Handle Sentiment Changes ---
+  	if (sentiment && sentiment !== 'all') {
+  		// A sentiment filter is active. The change for that metric is the change in total comments.
+  		const metric = transformedData.metrics.find(m => m.id.includes(sentiment));
+  		if (metric) metric.change = total_comments_change;
+ 
+  	} else {
+  		// No sentiment filter. Compare percentages across all sentiments.
+  		const calculateSentimentPercentages = (comments: any[]) => {
+  			const counts = { positive: 0, negative: 0, neutral: 0, total: 0 };
+  			if (!comments || comments.length === 0) return { positive: 0, negative: 0, neutral: 0 };
+  			for (const comment of comments) {
+  				counts.total++;
+  				const sentiment = comment.sentiment?.toLowerCase().trim();
+  				if (sentiment === 'positive') counts.positive++;
+  				else if (sentiment === 'negative') counts.negative++;
+  				else if (sentiment === 'neutral') counts.neutral++;
+  			}
+  			return {
+  				positive: (counts.positive / counts.total) * 100,
+  				negative: (counts.negative / counts.total) * 100,
+  				neutral: (counts.neutral / counts.total) * 100,
+  			};
+  		};
+  		const current_percentages = calculateSentimentPercentages(current_period_data.comments || []);
+  		const previous_percentages = calculateSentimentPercentages(previous_period_data.comments || []);
+ 
+  		const positive_change = calculatePercentageChange(current_percentages.positive, previous_percentages.positive);
+  		const negative_change = calculatePercentageChange(current_percentages.negative, previous_percentages.negative);
+  		const neutral_change = calculatePercentageChange(current_percentages.neutral, previous_percentages.neutral);
+ 
+  		const positiveMetric = transformedData.metrics.find(m => m.id === 'positive_sentiment');
+  		if (positiveMetric) positiveMetric.change = positive_change;
+  		const negativeMetric = transformedData.metrics.find(m => m.id === 'negative_sentiment');
+  		if (negativeMetric) negativeMetric.change = negative_change;
+  		const neutralMetric = transformedData.metrics.find(m => m.id === 'neutral_sentiment');
+  		if (neutralMetric) neutralMetric.change = neutral_change;
+  	}
+  }
+ 
+  return transformedData;
+}
 
 export async function getBrandDashboardData(
   brandId?: string,
@@ -179,6 +302,47 @@ export async function getAdSets(
 
   if (error) {
     console.error('Error fetching ad sets:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+// Enhanced functions for both old and new brands
+export async function getEnhancedCampaigns(
+  brandId: string,
+  dateRange?: { start: Date; end: Date },
+  sourceTable?: string
+) {
+  const { data, error } = await supabase.rpc('get_enhanced_campaigns_data', {
+    brand_id_param: brandId,
+    start_date_param: dateRange?.start.toISOString(),
+    end_date_param: dateRange?.end.toISOString(),
+    source_table_param: sourceTable
+  });
+
+  if (error) {
+    console.error('Error fetching enhanced campaigns:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getEnhancedAdSets(
+  brandId: string,
+  dateRange?: { start: Date; end: Date },
+  sourceTable?: string
+) {
+  const { data, error } = await supabase.rpc('get_enhanced_ad_sets_data', {
+    brand_id_param: brandId,
+    start_date_param: dateRange?.start.toISOString(),
+    end_date_param: dateRange?.end.toISOString(),
+    source_table_param: sourceTable
+  });
+
+  if (error) {
+    console.error('Error fetching enhanced ad sets:', error);
     throw error;
   }
 

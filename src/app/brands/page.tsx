@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { getBrands, getBrandDashboardData, getFilteredComments, getCampaigns, getAdSets } from '@/app/actions';
+import { getBrands, getBrandDashboardData, getFilteredComments, getCampaigns, getAdSets, getAllBrands, getEnhancedBrandDashboardData, getEnhancedCampaigns, getEnhancedAdSets } from '@/app/actions';
 import { useAppStore } from '@/lib/store';
 import BrandSelector from '../components/BrandSelector';
 import FilterBar from '../components/FilterBar';
@@ -104,10 +104,18 @@ function BrandsContent() {
   if (initialBrand) {
   if (selectedBrand?.id.toString() !== initialBrand) {
   const fetchAndSetInitialBrand = async () => {
-  const allBrands = await getBrands();
-  setBrands(allBrands);
-  if (allBrands) {
-  const brand = allBrands.find((b: any) => b.id.toString() === initialBrand);
+  const allBrands = await getAllBrands();
+  // Remove duplicates by brand name, prefer brands table over ad_account
+  const uniqueBrands = allBrands.filter((brand: any, index: number, self: any[]) => {
+    const firstIndex = self.findIndex((b: any) => b.brand_name.toLowerCase() === brand.brand_name.toLowerCase());
+    if (firstIndex === index) return true;
+    // If duplicate, prefer brands table over ad_account
+    const firstBrand = self[firstIndex];
+    return brand.source_table === 'brands' && firstBrand.source_table === 'ad_account';
+  });
+  setBrands(uniqueBrands);
+  if (uniqueBrands) {
+  const brand = uniqueBrands.find((b: any) => b.id.toString() === initialBrand);
   if (brand) {
   setSelectedBrand(brand);
   }
@@ -119,7 +127,17 @@ function BrandsContent() {
   if (selectedBrand) {
   setSelectedBrand(undefined);
   }
-  getBrands().then(setBrands);
+  getAllBrands().then((allBrands) => {
+    // Remove duplicates by brand name, prefer brands table over ad_account
+    const uniqueBrands = allBrands.filter((brand: any, index: number, self: any[]) => {
+      const firstIndex = self.findIndex((b: any) => b.brand_name.toLowerCase() === brand.brand_name.toLowerCase());
+      if (firstIndex === index) return true;
+      // If duplicate, prefer brands table over ad_account
+      const firstBrand = self[firstIndex];
+      return brand.source_table === 'brands' && firstBrand.source_table === 'ad_account';
+    });
+    setBrands(uniqueBrands);
+  });
   }
   }, [initialBrand, selectedBrand, setBrands, setSelectedBrand]);
 
@@ -129,7 +147,19 @@ function BrandsContent() {
       if (!selectedBrand) return;
         setLoading(true);
         try {
-            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, angel, searchQuery);
+            // Determine if this is from old brands table or new ad_account table
+            const isUUID = selectedBrand.id.toString().includes('-');
+            const isFromBrandsTable = selectedBrand.source_table === 'brands' || !isUUID;
+            
+            let result;
+            if (isFromBrandsTable) {
+              // Use old function for brands table
+              result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, angel, searchQuery);
+            } else {
+              // Use enhanced function for ad_account table
+              result = await getEnhancedBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, angel, searchQuery, 'ad_account');
+            }
+            
             setBrandData(result);
                           if (result.untracked_info) {
                             setUntrackedInfo({
@@ -164,11 +194,92 @@ function BrandsContent() {
         return;
       }
 
+      console.log('Selected Brand:', selectedBrand);
+      console.log('Source Table:', selectedBrand.source_table);
+      console.log('Brand ID:', selectedBrand.id, 'Type:', typeof selectedBrand.id);
+
       try {
-        const [campaigns, adSets] = await Promise.all([
-          getCampaigns(selectedBrand.id, dateRange),
-          getAdSets(selectedBrand.id, dateRange)
-        ]);
+        let campaigns = [];
+        let adSets = [];
+
+        // Use the source_table property to determine which functions to use
+        const isFromBrandsTable = selectedBrand.source_table === 'brands';
+
+        console.log('Is from brands table:', isFromBrandsTable);
+
+        if (isFromBrandsTable) {
+          // For old brands table, use the original functions with integer ID
+          console.log('Using original functions for brands table');
+          const [campaignsResult, adSetsResult] = await Promise.all([
+            getCampaigns(selectedBrand.id, dateRange),
+            getAdSets(selectedBrand.id, dateRange)
+          ]);
+          campaigns = campaignsResult;
+          adSets = adSetsResult;
+        } else {
+          // For ad_account brands, query directly with bigint ID
+          console.log('Using direct queries for ad_account table with ID:', selectedBrand.id);
+          
+          // Convert string ID to integer for the database query
+          const accountId = parseInt(selectedBrand.id, 10);
+          console.log('Converted account ID to integer:', accountId);
+          
+          // First check if there are campaigns directly in the campaigns table for this account
+          const { data: directCampaigns, error: directCampaignsError } = await supabase
+            .from('campaigns')
+            .select('*')
+            .eq('account_id', accountId);
+            
+          console.log('Direct campaigns query result:', directCampaigns, 'Error:', directCampaignsError);
+          
+          // Also check ad_sets through campaigns relationship
+          const { data: directAdSets, error: directAdSetsError } = await supabase
+            .from('ad_sets')
+            .select('*, campaigns!inner(*)')
+            .eq('campaigns.account_id', accountId);
+            
+          console.log('Direct ad sets query result:', directAdSets, 'Error:', directAdSetsError);
+
+          // Use direct queries results
+          if (!directCampaignsError && directCampaigns) {
+            campaigns = directCampaigns.map(c => ({
+              campaign_id: c.id,
+              campaign_name: c.name,
+              status: c.status,
+              objective: c.objective,
+              start_time: c.start_time,
+              created_at: c.created_at,
+              updated_at: c.updated_at,
+              account_id: c.account_id,
+              topline_id: c.topline_id
+            }));
+          }
+
+          if (!directAdSetsError && directAdSets) {
+            adSets = directAdSets.map(ads => ({
+              ad_set_id: ads.id,
+              ad_set_name: ads.name,
+              campaign_id: ads.campaign_id,
+              campaign_name: ads.campaigns?.name,
+              status: ads.status,
+              effective_status: ads.effective_status,
+              optimization_goal: ads.optimization_goal,
+              bid_strategy: ads.bid_strategy,
+              daily_budget: ads.daily_budget,
+              lifetime_budget: ads.lifetime_budget,
+              budget_remaining: ads.budget_remaining,
+              start_time: ads.start_time,
+              end_time: ads.end_time,
+              created_time: ads.created_time,
+              lifetime_imps: ads.lifetime_imps,
+              destination_type: ads.destination_type
+            }));
+          }
+        }
+
+        console.log('Final campaigns data:', campaigns);
+        console.log('Final ad sets data:', adSets);
+
         setCampaignsData(campaigns);
         setAdSetsData(adSets);
       } catch (err) {

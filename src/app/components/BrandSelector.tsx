@@ -4,9 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 type BrandSelectorProps = {
-  brands: { id: string; brand_name: string }[];
-  selectedBrand?: { id: string; brand_name: string };
-  onSelectBrand: (brand: { id: string; brand_name: string }) => void;
+  brands: { id: string; brand_name: string; source_table?: string; created_at?: string }[];
+  selectedBrand?: { id: string; brand_name: string; source_table?: string; created_at?: string };
+  onSelectBrand: (brand: { id: string; brand_name: string; source_table?: string; created_at?: string }) => void;
   displayAs?: 'dropdown' | 'cards' | 'list';
 };
 
