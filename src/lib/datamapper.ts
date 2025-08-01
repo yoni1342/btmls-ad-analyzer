@@ -145,7 +145,9 @@ export function transformDataForDashboard(
     topAds: top_performing_ads || [],
     ads: (ads || []).map((ad: any) => ({
       ...ad,
-      angle_type: ad["Angel Type"], // Map "Angel Type" to angle_type for AdTable component
+      ad_id: ad.ad_id || ad.id?.toString(), // Ensure string compatibility
+      angle_type: ad["Angel Type"] || ad.angle_type, // Handle both old and new formats
+      angel: ad["Angel"] || ad.angle, // Handle both old and new formats
       funnel: ad.funnel, // Include funnel field
       total_comments: ad.total_comments || 0 // Use unfiltered comment count from database
     })),

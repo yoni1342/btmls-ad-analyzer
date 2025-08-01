@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       Message: c.message,
       Sentiment: c.sentiment,
       Cluster: c.meta_cluster || '',
-      AngelType: c['Angel Type'] || '',
+      AngelType: c['Angel Type'] || c.angle_type || '',
       CreatedTime: c.created_time,
       AdTitle: c.ad_title || '',
       Funnel: c.funnel || ''

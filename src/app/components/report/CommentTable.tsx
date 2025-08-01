@@ -20,7 +20,8 @@ type Comment = {
   ad_id?: string;
   ad_title?: string;
   meta_cluster?: string;
-  'Angel Type'?: string;
+  'Angel Type'?: string; // Legacy format
+  angle_type?: string;   // New format for compatibility
   created_time?: string;
 };
 
@@ -94,7 +95,10 @@ export default function CommentTable({
  const filteredByCluster = useMemo(() => {
    let result = filteredByAd;
    if (angleTypeFilter) {
-     result = result.filter(c => (c['Angel Type'] || 'Unknown') === angleTypeFilter);
+     result = result.filter(c => {
+       const angelType = c['Angel Type'] || c.angle_type || 'Unknown';
+       return angelType === angleTypeFilter;
+     });
    }
    if (clusterFilter) {
      result = result.filter(c => (c.meta_cluster || 'Unknown') === clusterFilter);
@@ -128,7 +132,7 @@ export default function CommentTable({
   // (previous metaClusters removed)
 
    const angleTypes = useMemo(() =>
-     Array.from(new Set(filteredByAd.map(c => (c['Angel Type'] || 'Unknown')))),
+     Array.from(new Set(filteredByAd.map(c => (c['Angel Type'] || c.angle_type || 'Unknown')))),
      [filteredByAd]
    );
 
@@ -197,7 +201,8 @@ export default function CommentTable({
       filterFn: 'equals',
       sortingFn: 'alphanumeric',
     }),
-    columnHelper.accessor('Angel Type', { id: 'angle_type',
+    columnHelper.accessor((row) => row['Angel Type'] || row.angle_type, {
+      id: 'angle_type',
       header: () => <div className="cursor-pointer">Angel Type</div>,
       cell: info => info.getValue() || 'Unknown',
       filterFn: 'equals',
@@ -310,7 +315,7 @@ export default function CommentTable({
                 <div>Date: {selectedComment.created_time ? new Date(selectedComment.created_time).toLocaleString() : 'Unknown'}</div>
                 <div>Sentiment: {selectedComment.sentiment || 'Unknown'}</div>
                 <div>Cluster: {selectedComment.meta_cluster || 'Unknown'}</div>
-                <div>Angel Type: {selectedComment['Angel Type'] || 'Unknown'}</div>
+                <div>Angel Type: {selectedComment['Angel Type'] || selectedComment.angle_type || 'Unknown'}</div>
               </div>
             </div>
             
