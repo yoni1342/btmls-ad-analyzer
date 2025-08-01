@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { DashboardData } from './datamapper';
 
 export type AppState = {
-  brands: { id: string; brand_name: string; source_table?: string; created_at?: string }[];
-  selectedBrand?: { id: string; brand_name: string; source_table?: string; created_at?: string };
+  brands: { id: string; brand_name: string }[];
+  selectedBrand?: { id: string; brand_name: string };
   dateRange: { start: Date; end: Date };
   sentiment: string;
   funnel: string;
@@ -19,8 +19,8 @@ export type AppState = {
   isAdAnalyzing: boolean;
   isCommentAnalyzing: boolean;
 
-  setBrands: (brands: { id: string; brand_name: string; source_table?: string; created_at?: string }[]) => void;
-  setSelectedBrand: (brand?: { id: string; brand_name: string; source_table?: string; created_at?: string }) => void;
+  setBrands: (brands: { id: string; brand_name: string }[]) => void;
+  setSelectedBrand: (brand?: { id: string; brand_name: string }) => void;
   setDateRange: (range: { start: Date; end: Date }) => void;
   setSentiment: (sentiment: string) => void;
   setFunnel: (funnel: string) => void;
