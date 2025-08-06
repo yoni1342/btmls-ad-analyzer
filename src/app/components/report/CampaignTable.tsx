@@ -19,7 +19,6 @@ interface Campaign {
   created_at: string;
   updated_at: string;
   account_id: string;
-  account_name: string;
   topline_id?: string;
 }
 
@@ -184,14 +183,6 @@ export default function CampaignTable({ campaigns, selectedCampaignIds: controll
           </span>
         );
       },
-    }),
-    columnHelper.accessor('account_name', {
-      header: 'Account',
-      cell: info => (
-        <div className="max-w-xs truncate" title={info.getValue() || ''}>
-          {info.getValue()}
-        </div>
-      ),
     }),
     columnHelper.accessor('start_time', {
       header: 'Start Time',

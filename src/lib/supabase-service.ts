@@ -22,6 +22,8 @@ export type Ad = {
   funnel?: string;
   angle_type?: string;
   total_comments?: number; // Total unfiltered comment count for this ad
+  ad_set_id?: string; // For hierarchical filtering
+  campaign_id?: string; // For hierarchical filtering
 };
 
 export type Comment = {

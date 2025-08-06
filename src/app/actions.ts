@@ -153,34 +153,49 @@ export async function getCampaigns(
   brandId: string,
   dateRange?: { start: Date; end: Date }
 ) {
-  const { data, error } = await supabase.rpc('get_campaigns_data', {
-    brand_id_param: parseInt(brandId, 10),
-    start_date_param: dateRange?.start.toISOString(),
-    end_date_param: dateRange?.end.toISOString()
-  });
-
-  if (error) {
-    console.error('Error fetching campaigns:', error);
-    throw error;
-  }
-
-  return data || [];
+  // Get campaigns from the main dashboard data
+  const dashboardData = await getBrandDashboardData(brandId, dateRange);
+  return dashboardData?.campaigns || [];
 }
 
 export async function getAdSets(
   brandId: string,
-  dateRange?: { start: Date; end: Date }
+  dateRange?: { start: Date; end: Date },
+  campaignIds?: string[]
 ) {
-  const { data, error } = await supabase.rpc('get_ad_sets_data', {
-    brand_id_param: parseInt(brandId, 10),
-    start_date_param: dateRange?.start.toISOString(),
-    end_date_param: dateRange?.end.toISOString()
-  });
-
-  if (error) {
-    console.error('Error fetching ad sets:', error);
-    throw error;
+  // Get ad sets from the main dashboard data
+  const dashboardData = await getBrandDashboardData(brandId, dateRange);
+  let adSets = dashboardData?.ad_sets || [];
+  
+  // Filter ad sets by selected campaigns if provided
+  if (campaignIds && campaignIds.length > 0) {
+    adSets = adSets.filter(adSet =>
+      campaignIds.includes(adSet.campaign_id?.toString())
+    );
   }
 
-  return data || [];
+  return adSets;
+}
+
+export async function getFilteredAds(
+  brandId: string,
+  dateRange?: { start: Date; end: Date },
+  adSetIds?: string[],
+  funnel?: string,
+  angel?: string,
+  searchQuery?: string
+) {
+  // Get the full dashboard data to extract ads
+  const dashboardData = await getBrandDashboardData(brandId, dateRange, undefined, funnel, angel, searchQuery);
+  
+  let ads = dashboardData?.ads || [];
+  
+  // Filter ads by selected ad sets if provided
+  if (adSetIds && adSetIds.length > 0) {
+    ads = ads.filter(ad =>
+      ad.ad_set_id && adSetIds.includes(ad.ad_set_id.toString())
+    );
+  }
+  
+  return ads;
 }

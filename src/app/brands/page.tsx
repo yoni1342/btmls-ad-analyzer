@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { getBrands, getBrandDashboardData, getFilteredComments, getCampaigns, getAdSets } from '@/app/actions';
+import { getBrands, getBrandDashboardData, getFilteredComments, getCampaigns, getAdSets, getFilteredAds } from '@/app/actions';
 import { useAppStore } from '@/lib/store';
 import BrandSelector from '../components/BrandSelector';
 import FilterBar from '../components/FilterBar';
@@ -155,31 +155,67 @@ function BrandsContent() {
     fetchBrandData();
   }, [selectedBrand, dateRange, sentiment, funnel, angel, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
 
-  // Fetch campaigns and ad sets data
+  // Fetch campaigns data
   useEffect(() => {
-    const fetchCampaignsAndAdSets = async () => {
+    const fetchCampaigns = async () => {
       if (!selectedBrand) {
         setCampaignsData([]);
+        return;
+      }
+
+      try {
+        const campaigns = await getCampaigns(selectedBrand.id, dateRange);
+        setCampaignsData(campaigns);
+      } catch (err) {
+        console.error('Error fetching campaigns:', err);
+        setCampaignsData([]);
+      }
+    };
+
+    fetchCampaigns();
+  }, [selectedBrand, dateRange]);
+
+  // Fetch ad sets data based on selected campaigns
+  useEffect(() => {
+    const fetchAdSets = async () => {
+      if (!selectedBrand) {
         setAdSetsData([]);
         return;
       }
 
       try {
-        const [campaigns, adSets] = await Promise.all([
-          getCampaigns(selectedBrand.id, dateRange),
-          getAdSets(selectedBrand.id, dateRange)
-        ]);
-        setCampaignsData(campaigns);
+        const adSets = await getAdSets(selectedBrand.id, dateRange, selectedCampaignIds);
         setAdSetsData(adSets);
       } catch (err) {
-        console.error('Error fetching campaigns and ad sets:', err);
-        setCampaignsData([]);
+        console.error('Error fetching ad sets:', err);
         setAdSetsData([]);
       }
     };
 
-    fetchCampaignsAndAdSets();
-  }, [selectedBrand, dateRange]);
+    fetchAdSets();
+  }, [selectedBrand, dateRange, selectedCampaignIds]);
+
+  // Clear ad set selections when campaign selections change
+  useEffect(() => {
+    if (selectedCampaignIds.length === 0) {
+      // If no campaigns selected, keep current ad set selections
+      return;
+    }
+    
+    // Clear ad set selections when campaigns change to avoid inconsistent state
+    setSelectedAdSetIds([]);
+  }, [selectedCampaignIds]);
+
+  // Clear ad selections when ad set selections change
+  useEffect(() => {
+    if (selectedAdSetIds.length === 0) {
+      // If no ad sets selected, keep current ad selections
+      return;
+    }
+    
+    // Clear ad selections when ad sets change to avoid inconsistent state
+    setSelectedAdIds([]);
+  }, [selectedAdSetIds]);
 
   // Separate effect for fetching filtered comments when on comments tab
   useEffect(() => {
@@ -321,6 +357,97 @@ function BrandsContent() {
       console.error('Error sending untracked comments:', error);
       toast.error('An error occurred while sending untracked comments.');
     }
+  };
+
+  // Component for ads table with hierarchical filtering
+  const AdsTableWithFiltering = ({
+    selectedBrand,
+    selectedAdSetIds,
+    dateRange,
+    funnel,
+    angel,
+    searchQuery,
+    selectedAdIds,
+    setSelectedAdIds,
+    loading
+  }: {
+    selectedBrand: any;
+    selectedAdSetIds: string[];
+    dateRange: any;
+    funnel: string;
+    angel: string;
+    searchQuery: string;
+    selectedAdIds: string[];
+    setSelectedAdIds: (ids: string[]) => void;
+    loading: boolean;
+  }) => {
+    const [filteredAds, setFilteredAds] = useState<any[]>([]);
+    const [adsLoading, setAdsLoading] = useState(false);
+
+    useEffect(() => {
+      const fetchFilteredAds = async () => {
+        if (!selectedBrand) {
+          setFilteredAds([]);
+          return;
+        }
+
+        setAdsLoading(true);
+        try {
+          const ads = await getFilteredAds(
+            selectedBrand.id,
+            dateRange,
+            selectedAdSetIds.length > 0 ? selectedAdSetIds : undefined,
+            funnel,
+            angel,
+            searchQuery
+          );
+          
+          // Apply additional client-side filtering for search query
+          const finalAds = ads.filter(ad =>
+            (!searchQuery ||
+            (ad.ad_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (ad.ad_text?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (ad.ad_title?.toLowerCase().includes(searchQuery.toLowerCase())))
+          );
+          
+          setFilteredAds(finalAds);
+        } catch (err) {
+          console.error('Error fetching filtered ads:', err);
+          setFilteredAds([]);
+        } finally {
+          setAdsLoading(false);
+        }
+      };
+
+      fetchFilteredAds();
+    }, [selectedBrand, selectedAdSetIds, dateRange, funnel, angel, searchQuery]);
+
+    if (loading || adsLoading) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+        </div>
+      );
+    }
+
+    if (filteredAds.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          {selectedAdSetIds.length > 0
+            ? 'No ads found for the selected ad sets with the current filters.'
+            : 'No ads found for this brand with the selected filters.'
+          }
+        </div>
+      );
+    }
+
+    return (
+      <AdTable
+        ads={filteredAds}
+        selectedAdIds={selectedAdIds}
+        onSelectedAdIdsChange={setSelectedAdIds}
+      />
+    );
   };
 
   return (
@@ -472,7 +599,22 @@ function BrandsContent() {
 
             {selectedTab === 'adsets' && (
               <>
-                <h3 className="text-lg font-medium mb-4">All Ad Sets</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium">
+                    {selectedCampaignIds.length > 0
+                      ? `Ad Sets from ${selectedCampaignIds.length} Selected Campaign${selectedCampaignIds.length > 1 ? 's' : ''}`
+                      : 'All Ad Sets'
+                    }
+                  </h3>
+                  {selectedCampaignIds.length > 0 && (
+                    <button
+                      onClick={() => setSelectedCampaignIds([])}
+                      className="text-sm text-blue-500 hover:text-blue-700"
+                    >
+                      Clear Campaign Filter
+                    </button>
+                  )}
+                </div>
                 <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
                   {loading ? (
                     <div className="flex justify-center items-center h-64">
@@ -486,7 +628,10 @@ function BrandsContent() {
                     />
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      No ad sets found for this brand.
+                      {selectedCampaignIds.length > 0
+                        ? 'No ad sets found for the selected campaigns.'
+                        : 'No ad sets found for this brand.'
+                      }
                     </div>
                   )}
                 </div>
@@ -495,7 +640,22 @@ function BrandsContent() {
 
             {selectedTab === 'ads' && (
               <>
-                <h3 className="text-lg font-medium mb-4">All Ads</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium">
+                    {selectedAdSetIds.length > 0
+                      ? `Ads from ${selectedAdSetIds.length} Selected Ad Set${selectedAdSetIds.length > 1 ? 's' : ''}`
+                      : 'All Ads'
+                    }
+                  </h3>
+                  {selectedAdSetIds.length > 0 && (
+                    <button
+                      onClick={() => setSelectedAdSetIds([])}
+                      className="text-sm text-blue-500 hover:text-blue-700"
+                    >
+                      Clear Ad Set Filter
+                    </button>
+                  )}
+                </div>
                 <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
                   {/* Filter Controls */}
                   <div className="mb-4 flex gap-4">
@@ -531,28 +691,17 @@ function BrandsContent() {
                     </div>
                   </div>
 
-                  {loading ? (
-                    <div className="flex justify-center items-center h-64">
-                      <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
-                    </div>
-                  ) : brandData?.ads && brandData.ads.length > 0 ? (
-                    <AdTable
-                      ads={brandData.ads.filter(ad =>
-                        (!searchQuery ||
-                        (ad.ad_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                        (ad.ad_text?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                        (ad.ad_title?.toLowerCase().includes(searchQuery.toLowerCase()))) &&
-                        (funnel === 'all' || ad.funnel === funnel) &&
-                        (angel === 'all' || ad.angle_type === angel)
-                      )}
-                      selectedAdIds={selectedAdIds}
-                      onSelectedAdIdsChange={setSelectedAdIds}
-                    />
-                  ) : (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      No ads found for this brand with the selected filters.
-                    </div>
-                  )}
+                  <AdsTableWithFiltering
+                    selectedBrand={selectedBrand}
+                    selectedAdSetIds={selectedAdSetIds}
+                    dateRange={dateRange}
+                    funnel={funnel}
+                    angel={angel}
+                    searchQuery={searchQuery}
+                    selectedAdIds={selectedAdIds}
+                    setSelectedAdIds={setSelectedAdIds}
+                    loading={loading}
+                  />
                 </div>
               </>
             )}
