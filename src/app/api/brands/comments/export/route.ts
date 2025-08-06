@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     
     const safeComments = comments || [];
 
-    // Prepare Comments sheet
+    // Prepare Comments sheet  
     const commentsSheet = safeComments.map((c: Comment) => {
       return {
         CommentID: c.comment_id,
