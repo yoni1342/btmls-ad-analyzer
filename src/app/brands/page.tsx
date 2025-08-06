@@ -95,7 +95,7 @@ function BrandsContent() {
   const [exportCommentsRange, setExportCommentsRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
   const [filteredComments, setFilteredComments] = useState<any[]>([]);
   
-  // Comment table specific filters
+  // Comment table specific filters  
   const [commentSentimentFilter, setCommentSentimentFilter] = useState('');
   const [commentClusterFilter, setCommentClusterFilter] = useState('');
   const [commentAngleTypeFilter, setCommentAngleTypeFilter] = useState('');
