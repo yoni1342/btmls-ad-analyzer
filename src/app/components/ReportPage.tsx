@@ -69,6 +69,11 @@ type ReportPageProps = {
 export default function ReportPage({ data }: ReportPageProps) {
   const [selectedTab, setSelectedTab] = useState('overview');
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
+  
+  // Comment filter states
+  const [sentimentFilter, setSentimentFilter] = useState('');
+  const [clusterFilter, setClusterFilter] = useState('');
+  const [angleTypeFilter, setAngleTypeFilter] = useState('');
 
   // Use comments, clusters, and clusterComments from data if present
   const ads = data.ads || [];
@@ -377,7 +382,18 @@ export default function ReportPage({ data }: ReportPageProps) {
         <>
           <h2 className="text-xl font-semibold mb-4">All Comments</h2>
           <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-            <CommentTable comments={filteredComments} ads={ads} clusters={clusters} clusterComments={clusterComments} />
+            <CommentTable 
+              comments={filteredComments} 
+              ads={ads} 
+              clusters={clusters} 
+              clusterComments={clusterComments}
+              sentimentFilter={sentimentFilter}
+              setSentimentFilter={setSentimentFilter}
+              clusterFilter={clusterFilter}
+              setClusterFilter={setClusterFilter}
+              angleTypeFilter={angleTypeFilter}
+              setAngleTypeFilter={setAngleTypeFilter}
+            />
           </div>
         </>
       )}

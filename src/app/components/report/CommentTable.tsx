@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useAppStore } from '@/lib/store';
 import {
   createColumnHelper,
   flexRender,
@@ -19,7 +20,8 @@ type Comment = {
   ad_id?: string;
   ad_title?: string;
   meta_cluster?: string;
-  'Angel Type'?: string;
+  'Angel Type'?: string; // Legacy format
+  angle_type?: string;   // New format for compatibility
   created_time?: string;
 };
 
@@ -40,9 +42,30 @@ type CommentTableProps = {
   selectedAdIds?: string[]; // For future extensibility, not used for filtering here
   clusters?: any[];
   clusterComments?: any[];
+  // Comment-specific filters managed by parent
+  sentimentFilter: string;
+  setSentimentFilter: (value: string) => void;
+  clusterFilter: string;
+  setClusterFilter: (value: string) => void;
+  angleTypeFilter: string;
+  setAngleTypeFilter: (value: string) => void;
 };
 
-export default function CommentTable({ comments, ads = [], selectedAdIds, clusters = [], clusterComments = [] }: CommentTableProps) {
+export default function CommentTable({
+  comments,
+  ads = [],
+  selectedAdIds,
+  clusters = [],
+  clusterComments = [],
+  sentimentFilter,
+  setSentimentFilter,
+  clusterFilter,
+  setClusterFilter,
+  angleTypeFilter,
+  setAngleTypeFilter
+}: CommentTableProps) {
+  const { selectedBrand, searchQuery, dateRange } = useAppStore();
+
   const filteredByAd = useMemo(() => {
     if (selectedAdIds && selectedAdIds.length > 0) {
       return comments.filter(c => selectedAdIds.includes(c.ad_id || ''));
@@ -50,9 +73,6 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
     return comments;
   }, [comments, selectedAdIds]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [sentimentFilter, setSentimentFilter] = useState('');
-  const [clusterFilter, setClusterFilter] = useState('');
-  const [angleTypeFilter, setAngleTypeFilter] = useState('');
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 50,
@@ -75,7 +95,10 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
  const filteredByCluster = useMemo(() => {
    let result = filteredByAd;
    if (angleTypeFilter) {
-     result = result.filter(c => (c['Angel Type'] || 'Unknown') === angleTypeFilter);
+     result = result.filter(c => {
+       const angelType = c['Angel Type'] || c.angle_type || 'Unknown';
+       return angelType === angleTypeFilter;
+     });
    }
    if (clusterFilter) {
      result = result.filter(c => (c.meta_cluster || 'Unknown') === clusterFilter);
@@ -109,7 +132,7 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
   // (previous metaClusters removed)
 
    const angleTypes = useMemo(() =>
-     Array.from(new Set(filteredByAd.map(c => (c['Angel Type'] || 'Unknown')))),
+     Array.from(new Set(filteredByAd.map(c => (c['Angel Type'] || c.angle_type || 'Unknown')))),
      [filteredByAd]
    );
 
@@ -178,7 +201,8 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
       filterFn: 'equals',
       sortingFn: 'alphanumeric',
     }),
-    columnHelper.accessor('Angel Type', { id: 'angle_type',
+    columnHelper.accessor((row) => row['Angel Type'] || row.angle_type, {
+      id: 'angle_type',
       header: () => <div className="cursor-pointer">Angel Type</div>,
       cell: info => info.getValue() || 'Unknown',
       filterFn: 'equals',
@@ -291,7 +315,7 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
                 <div>Date: {selectedComment.created_time ? new Date(selectedComment.created_time).toLocaleString() : 'Unknown'}</div>
                 <div>Sentiment: {selectedComment.sentiment || 'Unknown'}</div>
                 <div>Cluster: {selectedComment.meta_cluster || 'Unknown'}</div>
-                <div>Angel Type: {selectedComment['Angel Type'] || 'Unknown'}</div>
+                <div>Angel Type: {selectedComment['Angel Type'] || selectedComment.angle_type || 'Unknown'}</div>
               </div>
             </div>
             
@@ -382,6 +406,7 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
     );
   };
 
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap gap-4">
@@ -429,7 +454,7 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
           </select>
         </div>
       </div>
-      
+        
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white dark:bg-gray-800">
           <thead className="bg-gray-50 dark:bg-gray-700">
@@ -550,4 +575,4 @@ export default function CommentTable({ comments, ads = [], selectedAdIds, cluste
       {showModal && <AdDetailModal />}
     </div>
   );
-} 
+}

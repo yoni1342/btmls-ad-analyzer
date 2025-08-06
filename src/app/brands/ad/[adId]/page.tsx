@@ -19,6 +19,11 @@ export default function AdDetailPage() {
   const [clusters, setClusters] = useState<CommentCluster[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Comment table filters for this page
+  const [sentimentFilter, setSentimentFilter] = useState('');
+  const [clusterFilter, setClusterFilter] = useState('');
+  const [angleTypeFilter, setAngleTypeFilter] = useState('');
 
   // Auth check
   useEffect(() => {
@@ -112,7 +117,17 @@ export default function AdDetailPage() {
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg">
               <h2 className="text-2xl font-bold mb-4">Comments</h2>
-              <CommentTable comments={comments} clusters={clusters} ads={ad ? [ad] : []} />
+              <CommentTable
+                comments={comments}
+                clusters={clusters}
+                ads={ad ? [ad] : []}
+                sentimentFilter={sentimentFilter}
+                setSentimentFilter={setSentimentFilter}
+                clusterFilter={clusterFilter}
+                setClusterFilter={setClusterFilter}
+                angleTypeFilter={angleTypeFilter}
+                setAngleTypeFilter={setAngleTypeFilter}
+              />
             </div>
           </>
         )}

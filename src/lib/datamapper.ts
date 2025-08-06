@@ -28,9 +28,11 @@ export type DashboardData = {
         labels: string[];
         values: number[];
     };
-    topAds: any[]; 
+    topAds: any[];
     ads: Ad[]; // For AdTable and MediaGrid
     allComments: Comment[]; // For CommentTable
+    campaigns?: any[]; // For CampaignTable
+    ad_sets?: any[]; // For AdSetsTable
     extendedAnalysis?: {
     angleTypeData?: any;
     clusterData?: any;
@@ -62,6 +64,8 @@ export function transformDataForDashboard(
         brand_status,
         		ads,
         		comments,
+        		campaigns,
+        		ad_sets,
         } = data;
 
       const totalComments = key_metrics.total_comments || 1;
@@ -145,11 +149,15 @@ export function transformDataForDashboard(
     topAds: top_performing_ads || [],
     ads: (ads || []).map((ad: any) => ({
       ...ad,
-      angle_type: ad["Angel Type"], // Map "Angel Type" to angle_type for AdTable component
+      ad_id: ad.ad_id || ad.id?.toString(), // Ensure string compatibility
+      angle_type: ad["Angel Type"] || ad.angle_type, // Handle both old and new formats
+      angel: ad["Angel"] || ad.angle, // Handle both old and new formats
       funnel: ad.funnel, // Include funnel field
-      comments: (comments || []).filter((c: Comment) => c.ad_id === ad.ad_id)
+      total_comments: ad.total_comments || 0 // Use unfiltered comment count from database
     })),
     allComments: comments || [],
+    campaigns: campaigns || [],
+    ad_sets: ad_sets || [],
     extendedAnalysis: {
     adCommentData: {
               labels: (top_performing_ads || []).map((ad: any) => ad.ad_id),

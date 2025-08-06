@@ -56,23 +56,32 @@ export async function POST(request: Request) {
       	continue;
       }
 
-      // Fetch ads for this brand and ad_ids
+      // Fetch ads using new hierarchical structure
       const { data: ads, error: adsError } = await supabase
-      	.from('ad_per_ad_account')
-      	.select('*, brands(brand_name)')
-      	.eq('brand_id', brand_id)
-      	.in('ad_id', ad_ids);
+      	.from('ads')
+      	.select(`
+          *,
+          ad_sets!inner(
+            campaigns!inner(
+              ad_account!inner(
+                brands!inner(brand_name)
+              )
+            )
+          )
+        `)
+      	.eq('ad_sets.campaigns.ad_account.brand_id', brand_id)
+      	.in('id', ad_ids);
       if (adsError) {
       	results.push({ error: `Error fetching ads for brand ${brand_id}: ${adsError.message}` });
       	continue;
       }
       console.log(`Fetched ${ads.length} ads for brand ${brand_id}:`, ads);
 
-      // Fetch comments for these ads
+      // Fetch comments for these ads using bigint ad_ids
       const { data: comments, error: commentsError } = await supabase
       	.from('comments')
       	.select('*')
-      	.in('ad_id', ad_ids);
+      	.in('ad_id', ad_ids.map(id => parseInt(id, 10)));
       if (commentsError) {
       	results.push({ error: `Error fetching comments for brand ${brand_id}: ${commentsError.message}` });
       	continue;
@@ -143,8 +152,9 @@ export async function POST(request: Request) {
         ? [...prevData.comments.filter((c: any) => !comments.some((nc: any) => nc.comment_id === c.comment_id)), ...comments]
         : comments;
 
-      // Compose the new report data
-      const brand_name = ads.length > 0 && ads[0].brands ? ads[0].brands.brand_name : 'Unknown';
+      // Compose the new report data - map from new hierarchical structure
+      const brand_name = ads.length > 0 && ads[0].ad_sets?.campaigns?.ad_account?.brands ?
+        ads[0].ad_sets.campaigns.ad_account.brands.brand_name : 'Unknown';
       const reportData = {
       	brand: brand_name,
       	ads: mergedAds,

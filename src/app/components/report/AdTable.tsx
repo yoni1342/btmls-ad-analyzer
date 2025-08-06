@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   createColumnHelper,
@@ -21,7 +21,7 @@ interface Ad {
   video_url?: string;
   post_link?: string;
   funnel?: string;
-  comments?: any[];
+  total_comments?: number; // Total unfiltered comment count for this ad
 }
 
 type AdTableProps = {
@@ -31,10 +31,66 @@ type AdTableProps = {
 };
 
 export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, onSelectedAdIdsChange }: AdTableProps) {
+  // Load persisted selected ads from localStorage
+  const loadPersistedSelectedAds = (): string[] => {
+    if (typeof window !== 'undefined') {
+      try {
+        const persisted = localStorage.getItem('selectedAdIds');
+        return persisted ? JSON.parse(persisted) : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
   // Support both controlled and uncontrolled selection
-  const [uncontrolledSelectedAdIds, setUncontrolledSelectedAdIds] = useState<string[]>([]);
+  const [uncontrolledSelectedAdIds, setUncontrolledSelectedAdIds] = useState<string[]>(() =>
+    controlledSelectedAdIds ?? loadPersistedSelectedAds()
+  );
   const selectedAdIds = controlledSelectedAdIds ?? uncontrolledSelectedAdIds;
-  const setSelectedAdIds = onSelectedAdIdsChange ?? setUncontrolledSelectedAdIds;
+  
+  // Enhanced setSelectedAdIds with persistence
+  const setSelectedAdIds = (newIds: string[] | ((prev: string[]) => string[])) => {
+    const ids = typeof newIds === 'function' ? newIds(selectedAdIds) : newIds;
+    
+    // Persist to localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('selectedAdIds', JSON.stringify(ids));
+      } catch {
+        // Silently handle localStorage errors
+      }
+    }
+    
+    if (onSelectedAdIdsChange) {
+      onSelectedAdIdsChange(ids);
+    } else {
+      setUncontrolledSelectedAdIds(ids);
+    }
+  };
+
+  // Static display order - set once on mount and never changes during session
+  const [displayAds, setDisplayAds] = useState<Ad[]>(() => {
+    // On component mount, immediately check for persisted selections and reorder
+    const persistedSelections = loadPersistedSelectedAds();
+    
+    if (persistedSelections.length === 0) {
+      return ads;
+    }
+    
+    const selectedAds = ads.filter(ad => persistedSelections.includes(ad.ad_id));
+    const unselectedAds = ads.filter(ad => !persistedSelections.includes(ad.ad_id));
+    return [...selectedAds, ...unselectedAds];
+  });
+
+  // Handle ads data changes (but preserve order during session)
+  useEffect(() => {
+    // Only update displayAds if it's completely empty (safety check)
+    if (displayAds.length === 0 && ads.length > 0) {
+      setDisplayAds(ads);
+    }
+  }, [ads, displayAds.length]);
 
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
@@ -45,32 +101,49 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
   const columns = [
     {
       id: 'select',
-      header: () => <input
-        ref={checkboxRef}
-        type="checkbox"
-        checked={ads.length > 0 && selectedAdIds.length === ads.length}
-        onChange={e => {
-          if (e.target.checked) {
-            setSelectedAdIds(ads.map(ad => ad.ad_id));
-          } else {
-            setSelectedAdIds([]);
-          }
-        }}
-      />,
+      header: () => (
+        <div
+          className="flex items-center justify-center py-2 px-4 cursor-pointer"
+          onClick={e => {
+            e.stopPropagation();
+            const allSelected = displayAds.length > 0 && selectedAdIds.length === displayAds.length;
+            if (!allSelected) {
+              setSelectedAdIds(displayAds.map(ad => ad.ad_id));
+            } else {
+              setSelectedAdIds([]);
+            }
+          }}
+        >
+          <input
+            ref={checkboxRef}
+            type="checkbox"
+            checked={displayAds.length > 0 && selectedAdIds.length === displayAds.length}
+            onChange={() => {}} // Handled by container click
+            className="pointer-events-none" // Prevent direct input interaction
+          />
+        </div>
+      ),
       cell: ({ row }: any) => (
-        <input
-          type="checkbox"
-          checked={selectedAdIds.includes(row.original.ad_id)}
-          onChange={e => {
+        <div
+          className="flex items-center justify-center py-2 px-4 cursor-pointer"
+          onClick={e => {
+            e.stopPropagation();
             const id = row.original.ad_id;
-            if (e.target.checked) {
+            const isCurrentlyChecked = selectedAdIds.includes(id);
+            if (!isCurrentlyChecked) {
               setSelectedAdIds([...selectedAdIds, id]);
             } else {
               setSelectedAdIds(selectedAdIds.filter(selectedId => selectedId !== id));
             }
           }}
-          onClick={e => e.stopPropagation()}
-        />
+        >
+          <input
+            type="checkbox"
+            checked={selectedAdIds.includes(row.original.ad_id)}
+            onChange={() => {}} // Handled by container click
+            className="pointer-events-none" // Prevent direct input interaction
+          />
+        </div>
       ),
     },
     columnHelper.accessor('ad_id', {
@@ -169,14 +242,14 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
         </a>
       ) : 'No link',
     }),
-    columnHelper.accessor('comments', {
+    columnHelper.accessor('total_comments', {
       header: 'Comments',
-      cell: info => (info.getValue()?.length || 0) + ' comments',
+      cell: info => (info.getValue() || 0) + ' comments',
     })
   ];
 
   const table = useReactTable({
-    data: ads,
+    data: displayAds,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -185,15 +258,17 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
         pageSize: 5,
       },
     },
+    // Prevent automatic pagination reset on data changes
+    autoResetPageIndex: false,
   });
 
   const checkboxRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (checkboxRef.current) {
-      checkboxRef.current.indeterminate = selectedAdIds.length > 0 && selectedAdIds.length < ads.length;
+      checkboxRef.current.indeterminate = selectedAdIds.length > 0 && selectedAdIds.length < displayAds.length;
     }
-  }, [selectedAdIds.length, ads.length]);
+  }, [selectedAdIds.length, displayAds.length]);
 
   return (
     <div>
