@@ -217,37 +217,21 @@ function BrandsContent() {
     setSelectedAdIds([]);
   }, [selectedAdSetIds]);
 
-  // Separate effect for fetching filtered comments when on comments tab
+  // Use comments from dashboard data instead of fetching separately
   useEffect(() => {
-    const fetchFilteredComments = async () => {
-      if (!selectedBrand || selectedTab !== 'comments') return;
-      
-      setLoading(true);
-      try {
-        // Get ad IDs to filter by (either selected ads or all ads from current view)
-        const adIdsToFilter = selectedAdIds.length > 0
-          ? selectedAdIds
-          : brandData?.ads?.map(ad => ad.ad_id) || [];
-        
-        const comments = await getFilteredComments(
-          selectedBrand.id,
-          adIdsToFilter.length > 0 ? adIdsToFilter : undefined,
-          commentSentimentFilter || undefined,
-          commentClusterFilter || undefined,
-          commentAngleTypeFilter || undefined,
-          searchQuery,
-          dateRange // Use page date filter for comments when on comments tab
-        );
-        setFilteredComments(comments);
-      } catch (err) {
-        console.error('Error fetching filtered comments:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFilteredComments();
-  }, [selectedBrand, selectedTab, dateRange, commentSentimentFilter, commentAngleTypeFilter, commentClusterFilter, searchQuery, selectedAdIds, brandData?.ads, setLoading]);
+    if (!selectedBrand || !brandData) return;
+    
+    // Use the comments from the main dashboard data
+    // This ensures consistency with the overview metrics
+    let comments = brandData.allComments || [];
+    
+    // If specific ads are selected, filter comments to those ads
+    if (selectedAdIds.length > 0) {
+      comments = comments.filter(c => selectedAdIds.includes(c.ad_id));
+    }
+    
+    setFilteredComments(comments);
+  }, [selectedBrand, brandData, selectedAdIds]);
 
   const handleSelectBrand = (brand: { id: string; brand_name: string }) => {
     setSelectedBrand(brand.id === '' ? undefined : brand);
