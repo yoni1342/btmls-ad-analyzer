@@ -25,10 +25,13 @@ export async function getBrandDashboardData(
   angel?: string,
   searchQuery?: string
 ) {
+  // Check if this is a lifetime query (start date is Unix epoch)
+  const isLifetimeQuery = dateRange?.start && dateRange.start.getTime() === 0;
+  
   const { data, error } = await supabase.rpc('get_dashboard_data', {
   brand_id_param: brandId ? parseInt(brandId, 10) : null,
-  start_date_param: dateRange?.start.toISOString(),
-  end_date_param: dateRange?.end.toISOString(),
+  start_date_param: isLifetimeQuery ? null : dateRange?.start?.toISOString() || null,
+  end_date_param: isLifetimeQuery ? null : dateRange?.end?.toISOString() || null,
       sentiment_param: sentiment,
       funnel_param: funnel,
       angel_param: angel
@@ -43,8 +46,8 @@ export async function getBrandDashboardData(
  
   const { data: comparisonData, error: comparisonError } = await supabase.rpc('get_sentiments_with_comparison', {
   	brand_id_param: brandId ? parseInt(brandId, 10) : null,
-  	start_date_param: dateRange?.start.toISOString(),
-  	end_date_param: dateRange?.end.toISOString(),
+  	start_date_param: isLifetimeQuery ? null : dateRange?.start?.toISOString() || null,
+  	end_date_param: isLifetimeQuery ? null : dateRange?.end?.toISOString() || null,
   	ad_ids_param: null,
   	sentiment_param: sentiment,
   	cluster_param: null,
@@ -130,6 +133,9 @@ export async function getFilteredComments(
   searchQuery?: string,
   dateRange?: { start: Date; end: Date }
 ) {
+  // Check if this is a lifetime query (start date is Unix epoch)
+  const isLifetimeQuery = dateRange?.start && dateRange.start.getTime() === 0;
+  
   const { data, error } = await supabase.rpc('get_filtered_data', {
     brand_id_param: parseInt(brandId, 10),
     ad_ids_param: adIds && adIds.length > 0 ? adIds : null,
@@ -137,8 +143,8 @@ export async function getFilteredComments(
     cluster_param: cluster,
     angel_param: angel,
     search_query_param: searchQuery,
-    start_date_param: dateRange?.start.toISOString(),
-    end_date_param: dateRange?.end.toISOString()
+    start_date_param: isLifetimeQuery ? null : dateRange?.start?.toISOString() || null,
+    end_date_param: isLifetimeQuery ? null : dateRange?.end?.toISOString() || null
   });
 
   if (error) {
