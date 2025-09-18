@@ -18,7 +18,6 @@ import AdTable from '../components/report/AdTable';
 import CampaignTable from '../components/report/CampaignTable';
 import AdSetsTable from '../components/report/AdSetsTable';
 import CommentTable from '../components/report/CommentTable';
-import MediaGrid from '../components/report/MediaGrid';
 
 export default function BrandsPage() {
   const router = useRouter();
@@ -541,12 +540,6 @@ function BrandsContent() {
                 >
                   Comments
                 </button>
-                <button
-                  className={`py-2 px-4 ${selectedTab === 'media' ? 'border-b-2 border-blue-500 font-medium text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                  onClick={() => setSelectedTab('media')}
-                >
-                  Media
-                </button>
               </div>
             </div>
 
@@ -719,24 +712,6 @@ function BrandsContent() {
               </>
             )}
 
-            {selectedTab === 'media' && (
-              <>
-                <h3 className="text-lg font-medium mb-4">Media Gallery</h3>
-                <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
-                  {loading ? (
-                    <div className="flex justify-center items-center h-64">
-                      <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
-                    </div>
-                  ) : brandData?.ads && brandData.ads.length > 0 ? (
-                    <MediaGrid ads={brandData.ads} />
-                  ) : (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      No media found for this brand.
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
           </div>
         </>
       )}
