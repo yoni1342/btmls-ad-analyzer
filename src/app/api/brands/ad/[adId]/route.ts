@@ -43,7 +43,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ adId
         .eq('id', adData.ad_set_id)
         .single();
       
-      brandId = adSetData?.campaigns?.ad_account?.brand_id || null;
+      brandId = adSetData?.campaigns?.[0]?.ad_account?.[0]?.brand_id || null;
     }
 
     // Transform ad data to match expected format
