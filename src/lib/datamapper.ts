@@ -54,6 +54,23 @@ export interface DashboardData {
       };
     };
 
+export function transformPaginatedDataForDashboard(
+  data: any,
+  dateRange?: { start: Date; end: Date }
+): DashboardData & { pagination?: any } {
+  // Extract pagination info
+  const { pagination, ...restData } = data || {};
+  
+  // Use the regular transformer for the rest
+  const transformedData = transformDataForDashboard(restData, dateRange);
+  
+  // Add pagination info
+  return {
+    ...transformedData,
+    pagination
+  };
+}
+
 export function transformDataForDashboard(
   data: any,
   dateRange?: { start: Date; end: Date }

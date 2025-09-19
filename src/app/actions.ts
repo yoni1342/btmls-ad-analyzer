@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
-import { transformDataForDashboard } from '@/lib/datamapper';
+import { transformDataForDashboard, transformPaginatedDataForDashboard } from '@/lib/datamapper';
 
 export async function getBrands() {
   const { data, error } = await supabase
@@ -14,6 +14,39 @@ export async function getBrands() {
   const brands = data || [];
   revalidatePath('/brands');
   return brands;
+}
+
+// New paginated function for brands page
+export async function getBrandDashboardDataPaginated(
+  brandId?: string,
+  dateRange?: { start: Date; end: Date },
+  sentiment?: string,
+  funnel?: string,
+  angel?: string,
+  searchQuery?: string,
+  page: number = 1,
+  pageSize: number = 100
+) {
+  const isLifetimeQuery = dateRange?.start && dateRange.start.getTime() === 0;
+  
+  const { data, error } = await supabase.rpc('get_dashboard_data_paginated', {
+    brand_id_param: brandId ? parseInt(brandId, 10) : null,
+    start_date_param: isLifetimeQuery ? null : dateRange?.start?.toISOString() || null,
+    end_date_param: isLifetimeQuery ? null : dateRange?.end?.toISOString() || null,
+    sentiment_param: sentiment,
+    funnel_param: funnel,
+    angel_param: angel,
+    return_full_data: true,
+    page_number: page,
+    page_size: pageSize
+  });
+
+  if (error) {
+    console.error('Error fetching paginated dashboard data:', error);
+    throw error;
+  }
+  
+  return transformPaginatedDataForDashboard(data, dateRange);
 }
 
 
