@@ -7,7 +7,7 @@ type Metric = {
     change: number;
 };
 
-export type DashboardData = {
+export interface DashboardData {
     title: string;
     metrics: Metric[];
     timeSeriesData: {
@@ -28,6 +28,10 @@ export type DashboardData = {
         labels: string[];
         values: number[];
     };
+    funnelDistribution?: {  // New field for funnel distribution
+        name: string;
+        count: number;
+    }[];
     topAds: any[];
     ads: Ad[]; // For AdTable and MediaGrid
     allComments: Comment[]; // For CommentTable
@@ -58,6 +62,7 @@ export function transformDataForDashboard(
     daily_sentiment_counts,
     total_sentiment_counts,
     theme_distribution,
+    funnel_distribution,
     top_performing_ads,
     key_metrics,
         untracked_info,
@@ -146,6 +151,7 @@ export function transformDataForDashboard(
         total_sentiment_counts.neutral,
       ],
     },
+    funnelDistribution: funnel_distribution || [],
     topAds: top_performing_ads || [],
     ads: (ads || []).map((ad: any) => ({
       ...ad,

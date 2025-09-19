@@ -66,6 +66,10 @@ type DashboardData = {
     labels: string[];
     values: number[];
   };
+  funnelDistribution?: {
+    name: string;
+    count: number;
+  }[];
   topAds: any[]; // Changed from Ad type since we removed TopPerformingAds
    ads: any[];
    allComments: any[];
@@ -284,9 +288,12 @@ export default function Dashboard({
       })()}
 
       {/* Funnel Distribution Chart - Full Width */}
-      {data.ads && data.ads.length > 0 && (
+      {(data.funnelDistribution || (data.ads && data.ads.length > 0)) && (
         <div className="mb-6">
-          <FunnelDistribution ads={data.ads} />
+          <FunnelDistribution 
+            ads={data.ads} 
+            distributionData={data.funnelDistribution}
+          />
         </div>
       )}
       

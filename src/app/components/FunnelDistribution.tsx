@@ -8,32 +8,49 @@ interface Ad {
 }
 
 interface FunnelDistributionProps {
-  ads: Ad[];
+  ads?: Ad[];
+  distributionData?: { name: string; count: number }[];
 }
 
-export default function FunnelDistribution({ ads }: FunnelDistributionProps) {
+export default function FunnelDistribution({ ads, distributionData }: FunnelDistributionProps) {
   const funnelData = useMemo(() => {
-    // Initialize all funnel types with 0
-    const distribution = {
-      'TOF': 0,
-      'MOF': 0,
-      'BOF': 0,
-      'Unknown': 0
-    };
+    // If pre-calculated distribution data is provided, use it
+    if (distributionData && distributionData.length > 0) {
+      const total = distributionData.reduce((sum, item) => sum + item.count, 0);
+      return distributionData.map(item => ({
+        name: item.name,
+        count: item.count,
+        percentage: total > 0 ? ((item.count / total) * 100).toFixed(1) : '0.0'
+      }));
+    }
+    
+    // Otherwise, calculate from ads array (for backwards compatibility)
+    if (ads && ads.length > 0) {
+      // Initialize all funnel types with 0
+      const distribution = {
+        'TOF': 0,
+        'MOF': 0,
+        'BOF': 0,
+        'Unknown': 0
+      };
 
-    // Count actual ads
-    ads.forEach(ad => {
-      const funnel = ad.funnel || 'Unknown';
-      distribution[funnel as keyof typeof distribution] = (distribution[funnel as keyof typeof distribution] || 0) + 1;
-    });
+      // Count actual ads
+      ads.forEach(ad => {
+        const funnel = ad.funnel || 'Unknown';
+        distribution[funnel as keyof typeof distribution] = (distribution[funnel as keyof typeof distribution] || 0) + 1;
+      });
 
-    // Convert to array and include all types
-    return Object.entries(distribution).map(([name, count]) => ({
-      name,
-      count,
-      percentage: ads.length > 0 ? ((count / ads.length) * 100).toFixed(1) : '0.0'
-    }));
-  }, [ads]);
+      // Convert to array and include all types
+      return Object.entries(distribution).map(([name, count]) => ({
+        name,
+        count,
+        percentage: ads.length > 0 ? ((count / ads.length) * 100).toFixed(1) : '0.0'
+      }));
+    }
+    
+    // No data available
+    return [];
+  }, [ads, distributionData]);
 
   const getFunnelColor = (funnel: string) => {
     const colors = {
@@ -55,7 +72,9 @@ export default function FunnelDistribution({ ads }: FunnelDistributionProps) {
     return colors[funnel as keyof typeof colors] || 'text-gray-700';
   };
 
-  const totalAds = ads.length;
+  const totalAds = distributionData 
+    ? distributionData.reduce((sum, item) => sum + item.count, 0)
+    : (ads?.length || 0);
 
   if (totalAds === 0) {
     return (

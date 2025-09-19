@@ -128,7 +128,7 @@ function BrandsContent() {
       if (!selectedBrand) return;
         setLoading(true);
         try {
-            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, angel, searchQuery);
+            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, angel, searchQuery, true);
             setBrandData(result);
                           if (result.untracked_info) {
                             setUntrackedInfo({
