@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
-import { transformDataForDashboard } from '@/lib/datamapper';
+import { transformDataForDashboard, transformPaginatedDataForDashboard } from '@/lib/datamapper';
 
 export async function getBrands() {
   const { data, error } = await supabase
@@ -16,6 +16,39 @@ export async function getBrands() {
   return brands;
 }
 
+// New paginated function for brands page
+export async function getBrandDashboardDataPaginated(
+  brandId?: string,
+  dateRange?: { start: Date; end: Date },
+  sentiment?: string,
+  funnel?: string,
+  angel?: string,
+  searchQuery?: string,
+  page: number = 1,
+  pageSize: number = 100
+) {
+  const isLifetimeQuery = dateRange?.start && dateRange.start.getTime() === 0;
+  
+  const { data, error } = await supabase.rpc('get_dashboard_data_paginated', {
+    brand_id_param: brandId ? parseInt(brandId, 10) : null,
+    start_date_param: isLifetimeQuery ? null : dateRange?.start?.toISOString() || null,
+    end_date_param: isLifetimeQuery ? null : dateRange?.end?.toISOString() || null,
+    sentiment_param: sentiment,
+    funnel_param: funnel,
+    angel_param: angel,
+    return_full_data: true,
+    page_number: page,
+    page_size: pageSize
+  });
+
+  if (error) {
+    console.error('Error fetching paginated dashboard data:', error);
+    throw error;
+  }
+  
+  return transformPaginatedDataForDashboard(data, dateRange);
+}
+
 
 export async function getBrandDashboardData(
   brandId?: string,
@@ -23,7 +56,8 @@ export async function getBrandDashboardData(
   sentiment?: string,
   funnel?: string,
   angel?: string,
-  searchQuery?: string
+  searchQuery?: string,
+  returnFullData: boolean = false  // New parameter to control data return
 ) {
   // Check if this is a lifetime query (start date is Unix epoch)
   const isLifetimeQuery = dateRange?.start && dateRange.start.getTime() === 0;
@@ -34,7 +68,8 @@ export async function getBrandDashboardData(
   end_date_param: isLifetimeQuery ? null : dateRange?.end?.toISOString() || null,
       sentiment_param: sentiment,
       funnel_param: funnel,
-      angel_param: angel
+      angel_param: angel,
+      return_full_data: returnFullData  // Pass the parameter to the database function
   });
 
   if (error) {
@@ -159,8 +194,8 @@ export async function getCampaigns(
   brandId: string,
   dateRange?: { start: Date; end: Date }
 ) {
-  // Get campaigns from the main dashboard data
-  const dashboardData = await getBrandDashboardData(brandId, dateRange);
+  // Get campaigns from the main dashboard data (with full data for brands page)
+  const dashboardData = await getBrandDashboardData(brandId, dateRange, undefined, undefined, undefined, undefined, true);
   return dashboardData?.campaigns || [];
 }
 
@@ -169,8 +204,8 @@ export async function getAdSets(
   dateRange?: { start: Date; end: Date },
   campaignIds?: string[]
 ) {
-  // Get ad sets from the main dashboard data
-  const dashboardData = await getBrandDashboardData(brandId, dateRange);
+  // Get ad sets from the main dashboard data (with full data for brands page)
+  const dashboardData = await getBrandDashboardData(brandId, dateRange, undefined, undefined, undefined, undefined, true);
   let adSets = dashboardData?.ad_sets || [];
   
   // Filter ad sets by selected campaigns if provided
@@ -191,8 +226,8 @@ export async function getFilteredAds(
   angel?: string,
   searchQuery?: string
 ) {
-  // Get the full dashboard data to extract ads
-  const dashboardData = await getBrandDashboardData(brandId, dateRange, undefined, funnel, angel, searchQuery);
+  // Get the full dashboard data to extract ads (with full data for brands page)
+  const dashboardData = await getBrandDashboardData(brandId, dateRange, undefined, funnel, angel, searchQuery, true);
   
   let ads = dashboardData?.ads || [];
   

@@ -23,6 +23,7 @@ export async function GET(request: Request) {
       sentiment_param: sentiment || null,
       funnel_param: funnel || null,
       angel_param: angel || null,
+      return_full_data: false, // Dashboard only needs aggregated data for graphs
     });
     if (error) throw error;
 

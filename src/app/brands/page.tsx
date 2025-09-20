@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { getBrands, getBrandDashboardData, getFilteredComments, getCampaigns, getAdSets, getFilteredAds } from '@/app/actions';
+import { getBrands, getBrandDashboardData, getBrandDashboardDataPaginated, getFilteredComments, getCampaigns, getAdSets, getFilteredAds } from '@/app/actions';
 import { useAppStore } from '@/lib/store';
 import BrandSelector from '../components/BrandSelector';
 import FilterBar from '../components/FilterBar';
@@ -93,6 +93,10 @@ function BrandsContent() {
   const [exportAdsRange, setExportAdsRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
   const [exportCommentsRange, setExportCommentsRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
   const [filteredComments, setFilteredComments] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [allAdsLoaded, setAllAdsLoaded] = useState<any[]>([]);
   
   // Comment table specific filters  
   const [commentSentimentFilter, setCommentSentimentFilter] = useState('');
@@ -127,25 +131,69 @@ function BrandsContent() {
     const fetchBrandData = async () => {
       if (!selectedBrand) return;
         setLoading(true);
+        setCurrentPage(1); // Reset to first page
         try {
-            const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, angel, searchQuery);
+            // Try paginated function first
+            const result = await getBrandDashboardDataPaginated(
+              selectedBrand.id, 
+              dateRange, 
+              sentiment, 
+              funnel, 
+              angel, 
+              searchQuery, 
+              1, // page 1
+              100 // page size
+            );
+            
             setBrandData(result);
-                          if (result.untracked_info) {
-                            setUntrackedInfo({
-                              adsCount: result.untracked_info.untracked_ads_count,
-                              commentsCount: result.untracked_info.untracked_comments_count,
-                              adIds: result.untracked_info.untracked_ad_ids || [],
-                              commentIds: result.untracked_info.untracked_comment_ids || [],
-                            });
-                          }
-                          if (result.brand_status) {
-                            setAnalyzingStatus({
-                              ad: result.brand_status.is_ad_analyzing,
-                              comment: result.brand_status.is_comment_analyzing,
-                            });
-                          }
-        } catch (err) {
+            
+            // Set pagination info if available
+            if (result.pagination) {
+              setTotalPages(result.pagination.total_pages || 1);
+            }
+            
+            if (result.untracked_info) {
+              setUntrackedInfo({
+                adsCount: result.untracked_info.untracked_ads_count,
+                commentsCount: result.untracked_info.untracked_comments_count,
+                adIds: result.untracked_info.untracked_ad_ids || [],
+                commentIds: result.untracked_info.untracked_comment_ids || [],
+              });
+            }
+            if (result.brand_status) {
+              setAnalyzingStatus({
+                ad: result.brand_status.is_ad_analyzing,
+                comment: result.brand_status.is_comment_analyzing,
+              });
+            }
+        } catch (err: any) {
             console.error('Error fetching brand data:', err);
+            // If paginated function fails, fall back to regular function
+            if (err.code === '42883') { // Function does not exist
+              try {
+                const result = await getBrandDashboardData(selectedBrand.id, dateRange, sentiment, funnel, angel, searchQuery, true);
+                setBrandData(result);
+                if (result.untracked_info) {
+                  setUntrackedInfo({
+                    adsCount: result.untracked_info.untracked_ads_count,
+                    commentsCount: result.untracked_info.untracked_comments_count,
+                    adIds: result.untracked_info.untracked_ad_ids || [],
+                    commentIds: result.untracked_info.untracked_comment_ids || [],
+                  });
+                }
+                if (result.brand_status) {
+                  setAnalyzingStatus({
+                    ad: result.brand_status.is_ad_analyzing,
+                    comment: result.brand_status.is_comment_analyzing,
+                  });
+                }
+              } catch (fallbackErr) {
+                console.error('Error with fallback:', fallbackErr);
+                toast.error('Failed to load brand data');
+              }
+            } else {
+              toast.error('Failed to load brand data');
+            }
         } finally {
             setLoading(false);
         }
@@ -153,6 +201,40 @@ function BrandsContent() {
 
     fetchBrandData();
   }, [selectedBrand, dateRange, sentiment, funnel, angel, searchQuery, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
+  
+  // Function to load more ads
+  const loadMoreAds = async () => {
+    if (!selectedBrand || isLoadingMore || currentPage >= totalPages) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const result = await getBrandDashboardDataPaginated(
+        selectedBrand.id,
+        dateRange,
+        sentiment,
+        funnel,
+        angel,
+        searchQuery,
+        nextPage,
+        100
+      );
+      
+      // Append new ads to existing ones
+      if (result.ads && result.ads.length > 0) {
+        setBrandData(prev => ({
+          ...prev,
+          ads: [...(prev?.ads || []), ...result.ads]
+        }));
+        setCurrentPage(nextPage);
+      }
+    } catch (err) {
+      console.error('Error loading more ads:', err);
+      toast.error('Failed to load more ads');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   // Fetch campaigns data
   useEffect(() => {
@@ -668,17 +750,39 @@ function BrandsContent() {
                     </div>
                   </div>
 
-                  <AdsTableWithFiltering
-                    selectedBrand={selectedBrand}
-                    selectedAdSetIds={selectedAdSetIds}
-                    dateRange={dateRange}
-                    funnel={funnel}
-                    angel={angel}
-                    searchQuery={searchQuery}
-                    selectedAdIds={selectedAdIds}
-                    setSelectedAdIds={setSelectedAdIds}
-                    loading={loading}
-                  />
+                  <>
+                    <AdsTableWithFiltering
+                      selectedBrand={selectedBrand}
+                      selectedAdSetIds={selectedAdSetIds}
+                      dateRange={dateRange}
+                      funnel={funnel}
+                      angel={angel}
+                      searchQuery={searchQuery}
+                      selectedAdIds={selectedAdIds}
+                      setSelectedAdIds={setSelectedAdIds}
+                      loading={loading}
+                    />
+                    
+                    {/* Load More Button for Pagination */}
+                    {totalPages > 1 && currentPage < totalPages && (
+                      <div className="mt-6 text-center">
+                        <button
+                          onClick={loadMoreAds}
+                          disabled={isLoadingMore}
+                          className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isLoadingMore ? (
+                            <>
+                              <span className="animate-spin inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
+                              Loading...
+                            </>
+                          ) : (
+                            `Load More (Page ${currentPage + 1} of ${totalPages})`
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </>
                 </div>
               </>
             )}
