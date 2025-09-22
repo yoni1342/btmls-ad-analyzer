@@ -13,6 +13,10 @@ export async function POST(request: Request) {
       sentiment,
       funnel,
       angel,
+      campaignStatus,
+      campaignObjective,
+      adsetStatus,
+      adsetOptimization,
       searchQuery,
       selectedAdIds,
       commentSentiment,
@@ -31,9 +35,16 @@ export async function POST(request: Request) {
       sentiment,
       funnel,
       angel,
-      searchQuery
+      campaignStatus,
+      campaignObjective,
+      adsetStatus,
+      adsetOptimization,
+      searchQuery,
+      true // return full data for export
     );
     const ads = dashData.ads || [];
+    const campaigns = dashData.campaigns || [];
+    const adSets = dashData.ad_sets || [];
 
     // Fetch comments data using get_filtered_data with comments date range
     const adIdsToFilter = selectedAdIds && selectedAdIds.length > 0
@@ -74,6 +85,39 @@ export async function POST(request: Request) {
       PostLink: ad.post_link ?? ''
     }));
 
+    // Prepare Campaigns sheet
+    const campaignsSheet = campaigns.map((campaign: any) => ({
+      CampaignID: campaign.campaign_id,
+      CampaignName: campaign.campaign_name,
+      Status: campaign.status,
+      Objective: campaign.objective,
+      StartTime: campaign.start_time,
+      CreatedAt: campaign.created_at,
+      UpdatedAt: campaign.updated_at,
+      AccountID: campaign.account_id,
+      ToplineID: campaign.topline_id || ''
+    }));
+
+    // Prepare AdSets sheet
+    const adSetsSheet = adSets.map((adSet: any) => ({
+      AdSetID: adSet.ad_set_id,
+      AdSetName: adSet.ad_set_name,
+      CampaignID: adSet.campaign_id,
+      CampaignName: adSet.campaign_name,
+      Status: adSet.status,
+      EffectiveStatus: adSet.effective_status,
+      OptimizationGoal: adSet.optimization_goal,
+      BidStrategy: adSet.bid_strategy,
+      DailyBudget: adSet.daily_budget || '',
+      LifetimeBudget: adSet.lifetime_budget || '',
+      BudgetRemaining: adSet.budget_remaining || '',
+      StartTime: adSet.start_time,
+      EndTime: adSet.end_time,
+      CreatedTime: adSet.created_time,
+      LifetimeImps: adSet.lifetime_imps || '',
+      DestinationType: adSet.destination_type || ''
+    }));
+
     // Prepare Comments sheet
     const commentsSheet = safeComments.map((c: any) => ({
       CommentID: c.comment_id,
@@ -89,8 +133,12 @@ export async function POST(request: Request) {
 
     // Build workbook
     const wb = XLSX.utils.book_new();
+    const wsCampaigns = XLSX.utils.json_to_sheet(campaignsSheet);
+    const wsAdSets = XLSX.utils.json_to_sheet(adSetsSheet);
     const wsAds = XLSX.utils.json_to_sheet(adsSheet);
     const wsComments = XLSX.utils.json_to_sheet(commentsSheet);
+    XLSX.utils.book_append_sheet(wb, wsCampaigns, 'Campaigns');
+    XLSX.utils.book_append_sheet(wb, wsAdSets, 'AdSets');
     XLSX.utils.book_append_sheet(wb, wsAds, 'Ads');
     XLSX.utils.book_append_sheet(wb, wsComments, 'Comments');
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });

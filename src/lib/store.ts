@@ -8,6 +8,10 @@ export type AppState = {
   sentiment: string;
   funnel: string;
   angel: string;
+  campaignStatus: string;
+  campaignObjective: string;
+  adsetStatus: string;
+  adsetOptimization: string;
   searchQuery: string;
   selectedTab: string;
   brandData: DashboardData | null;
@@ -25,6 +29,10 @@ export type AppState = {
   setSentiment: (sentiment: string) => void;
   setFunnel: (funnel: string) => void;
   setAngel: (angel: string) => void;
+  setCampaignStatus: (status: string) => void;
+  setCampaignObjective: (objective: string) => void;
+  setAdsetStatus: (status: string) => void;
+  setAdsetOptimization: (optimization: string) => void;
   setSearchQuery: (query: string) => void;
   setSelectedTab: (tab: string) => void;
   setBrandData: (data: DashboardData | null) => void;
@@ -48,6 +56,10 @@ export const useAppStore = create<AppState>((set) => ({
   sentiment: 'all',
   funnel: 'all',
   angel: 'all',
+  campaignStatus: 'all',
+  campaignObjective: 'all',
+  adsetStatus: 'all',
+  adsetOptimization: 'all',
   searchQuery: '',
   selectedTab: 'overview',
   brandData: null,
@@ -65,6 +77,10 @@ export const useAppStore = create<AppState>((set) => ({
   setSentiment: (sentiment) => set({ sentiment }),
   setFunnel: (funnel) => set({ funnel }),
   setAngel: (angel) => set({ angel }),
+  setCampaignStatus: (status) => set({ campaignStatus: status }),
+  setCampaignObjective: (objective) => set({ campaignObjective: objective }),
+  setAdsetStatus: (status) => set({ adsetStatus: status }),
+  setAdsetOptimization: (optimization) => set({ adsetOptimization: optimization }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedTab: (tab) => set({ selectedTab: tab }),
   setBrandData: (data) => set({ brandData: data }),
