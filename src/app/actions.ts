@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
-import { transformDataForDashboard, transformPaginatedDataForDashboard } from '@/lib/datamapper';
+import { transformDataForDashboard } from '@/lib/datamapper';
 
 export async function getBrands() {
   const { data, error } = await supabase
@@ -14,39 +14,6 @@ export async function getBrands() {
   const brands = data || [];
   revalidatePath('/brands');
   return brands;
-}
-
-// New paginated function for brands page
-export async function getBrandDashboardDataPaginated(
-  brandId?: string,
-  dateRange?: { start: Date; end: Date },
-  sentiment?: string,
-  funnel?: string,
-  angel?: string,
-  searchQuery?: string,
-  page: number = 1,
-  pageSize: number = 100
-) {
-  const isLifetimeQuery = dateRange?.start && dateRange.start.getTime() === 0;
-  
-  const { data, error } = await supabase.rpc('get_dashboard_data_paginated', {
-    brand_id_param: brandId ? parseInt(brandId, 10) : null,
-    start_date_param: isLifetimeQuery ? null : dateRange?.start?.toISOString() || null,
-    end_date_param: isLifetimeQuery ? null : dateRange?.end?.toISOString() || null,
-    sentiment_param: sentiment,
-    funnel_param: funnel,
-    angel_param: angel,
-    return_full_data: true,
-    page_number: page,
-    page_size: pageSize
-  });
-
-  if (error) {
-    console.error('Error fetching paginated dashboard data:', error);
-    throw error;
-  }
-  
-  return transformPaginatedDataForDashboard(data, dateRange);
 }
 
 
@@ -159,84 +126,3 @@ export async function getBrandDashboardData(
   return transformedData;
 }
 
-export async function getFilteredComments(
-  brandId: string,
-  adIds?: string[],
-  sentiment?: string,
-  cluster?: string,
-  angel?: string,
-  searchQuery?: string,
-  dateRange?: { start: Date; end: Date }
-) {
-  // Check if this is a lifetime query (start date is Unix epoch)
-  const isLifetimeQuery = dateRange?.start && dateRange.start.getTime() === 0;
-  
-  const { data, error } = await supabase.rpc('get_filtered_data', {
-    brand_id_param: parseInt(brandId, 10),
-    ad_ids_param: adIds && adIds.length > 0 ? adIds : null,
-    sentiment_param: sentiment,
-    cluster_param: cluster,
-    angel_param: angel,
-    search_query_param: searchQuery,
-    start_date_param: isLifetimeQuery ? null : dateRange?.start?.toISOString() || null,
-    end_date_param: isLifetimeQuery ? null : dateRange?.end?.toISOString() || null
-  });
-
-  if (error) {
-    console.error('Error fetching filtered comments:', error);
-    throw error;
-  }
-
-  return data || [];
-}
-
-export async function getCampaigns(
-  brandId: string,
-  dateRange?: { start: Date; end: Date }
-) {
-  // Get campaigns from the main dashboard data (with full data for brands page)
-  const dashboardData = await getBrandDashboardData(brandId, dateRange, undefined, undefined, undefined, undefined, true);
-  return dashboardData?.campaigns || [];
-}
-
-export async function getAdSets(
-  brandId: string,
-  dateRange?: { start: Date; end: Date },
-  campaignIds?: string[]
-) {
-  // Get ad sets from the main dashboard data (with full data for brands page)
-  const dashboardData = await getBrandDashboardData(brandId, dateRange, undefined, undefined, undefined, undefined, true);
-  let adSets = dashboardData?.ad_sets || [];
-  
-  // Filter ad sets by selected campaigns if provided
-  if (campaignIds && campaignIds.length > 0) {
-    adSets = adSets.filter(adSet =>
-      campaignIds.includes(adSet.campaign_id?.toString())
-    );
-  }
-
-  return adSets;
-}
-
-export async function getFilteredAds(
-  brandId: string,
-  dateRange?: { start: Date; end: Date },
-  adSetIds?: string[],
-  funnel?: string,
-  angel?: string,
-  searchQuery?: string
-) {
-  // Get the full dashboard data to extract ads (with full data for brands page)
-  const dashboardData = await getBrandDashboardData(brandId, dateRange, undefined, funnel, angel, searchQuery, true);
-  
-  let ads = dashboardData?.ads || [];
-  
-  // Filter ads by selected ad sets if provided
-  if (adSetIds && adSetIds.length > 0) {
-    ads = ads.filter(ad =>
-      ad.ad_set_id && adSetIds.includes(ad.ad_set_id.toString())
-    );
-  }
-  
-  return ads;
-}

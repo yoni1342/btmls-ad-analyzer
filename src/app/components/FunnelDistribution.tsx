@@ -14,42 +14,61 @@ interface FunnelDistributionProps {
 
 export default function FunnelDistribution({ ads, distributionData }: FunnelDistributionProps) {
   const funnelData = useMemo(() => {
-    // If pre-calculated distribution data is provided, use it
+    // Always start with all funnel types initialized to 0
+    const allFunnelTypes = {
+      'TOF': 0,
+      'MOF': 0,
+      'BOF': 0,
+      'Unprocessed': 0
+    };
+
+    // If pre-calculated distribution data is provided, merge it with defaults
     if (distributionData && distributionData.length > 0) {
-      const total = distributionData.reduce((sum, item) => sum + item.count, 0);
-      return distributionData.map(item => ({
-        name: item.name,
-        count: item.count,
-        percentage: total > 0 ? ((item.count / total) * 100).toFixed(1) : '0.0'
+      // Update counts from distribution data
+      distributionData.forEach(item => {
+        if (item.name in allFunnelTypes) {
+          allFunnelTypes[item.name as keyof typeof allFunnelTypes] = item.count;
+        } else if (item.name === 'Unknown') {
+          // Handle legacy 'Unknown' as 'Unprocessed'
+          allFunnelTypes['Unprocessed'] = item.count;
+        }
+      });
+      
+      const total = Object.values(allFunnelTypes).reduce((sum, count) => sum + count, 0);
+      return Object.entries(allFunnelTypes).map(([name, count]) => ({
+        name,
+        count,
+        percentage: total > 0 ? ((count / total) * 100).toFixed(1) : '0.0'
       }));
     }
     
     // Otherwise, calculate from ads array (for backwards compatibility)
     if (ads && ads.length > 0) {
-      // Initialize all funnel types with 0
-      const distribution = {
-        'TOF': 0,
-        'MOF': 0,
-        'BOF': 0,
-        'Unknown': 0
-      };
-
       // Count actual ads
       ads.forEach(ad => {
-        const funnel = ad.funnel || 'Unknown';
-        distribution[funnel as keyof typeof distribution] = (distribution[funnel as keyof typeof distribution] || 0) + 1;
+        const funnel = ad.funnel || 'Unprocessed';
+        if (funnel in allFunnelTypes) {
+          allFunnelTypes[funnel as keyof typeof allFunnelTypes]++;
+        } else {
+          // Handle any unexpected funnel values
+          allFunnelTypes['Unprocessed']++;
+        }
       });
 
-      // Convert to array and include all types
-      return Object.entries(distribution).map(([name, count]) => ({
+      const total = ads.length;
+      return Object.entries(allFunnelTypes).map(([name, count]) => ({
         name,
         count,
-        percentage: ads.length > 0 ? ((count / ads.length) * 100).toFixed(1) : '0.0'
+        percentage: total > 0 ? ((count / total) * 100).toFixed(1) : '0.0'
       }));
     }
     
-    // No data available
-    return [];
+    // No data available - still return all funnel types with 0
+    return Object.entries(allFunnelTypes).map(([name, count]) => ({
+      name,
+      count,
+      percentage: '0.0'
+    }));
   }, [ads, distributionData]);
 
   const getFunnelColor = (funnel: string) => {
@@ -57,6 +76,7 @@ export default function FunnelDistribution({ ads, distributionData }: FunnelDist
       'TOF': 'bg-green-500',
       'MOF': 'bg-yellow-500',
       'BOF': 'bg-red-500',
+      'Unprocessed': 'bg-gray-500',
       'Unknown': 'bg-gray-500'
     };
     return colors[funnel as keyof typeof colors] || 'bg-gray-500';
@@ -67,6 +87,7 @@ export default function FunnelDistribution({ ads, distributionData }: FunnelDist
       'TOF': 'text-green-700',
       'MOF': 'text-yellow-700',
       'BOF': 'text-red-700',
+      'Unprocessed': 'text-gray-700',
       'Unknown': 'text-gray-700'
     };
     return colors[funnel as keyof typeof colors] || 'text-gray-700';
@@ -75,19 +96,6 @@ export default function FunnelDistribution({ ads, distributionData }: FunnelDist
   const totalAds = distributionData 
     ? distributionData.reduce((sum, item) => sum + item.count, 0)
     : (ads?.length || 0);
-
-  if (totalAds === 0) {
-    return (
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
-          Funnel Distribution
-        </h3>
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No ads available for funnel analysis
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
