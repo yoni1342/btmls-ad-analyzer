@@ -84,11 +84,23 @@ export default function CampaignTable({ campaigns, selectedCampaignIds: controll
 
   // Handle campaigns data changes (but preserve order during session)
   useEffect(() => {
-    // Only update displayCampaigns if it's completely empty (safety check)
-    if (displayCampaigns.length === 0 && campaigns.length > 0) {
-      setDisplayCampaigns(campaigns);
+    // Update displayCampaigns when campaigns data changes (due to filtering)
+    // But maintain selection-based ordering if we have selections
+    if (campaigns.length > 0) {
+      if (selectedCampaignIds.length > 0) {
+        // Maintain order: selected campaigns first, then unselected
+        const selectedCampaigns = campaigns.filter(campaign => selectedCampaignIds.includes(campaign.campaign_id));
+        const unselectedCampaigns = campaigns.filter(campaign => !selectedCampaignIds.includes(campaign.campaign_id));
+        setDisplayCampaigns([...selectedCampaigns, ...unselectedCampaigns]);
+      } else {
+        // No selections, just use the campaigns as-is
+        setDisplayCampaigns(campaigns);
+      }
+    } else {
+      // No campaigns data, clear display
+      setDisplayCampaigns([]);
     }
-  }, [campaigns, displayCampaigns.length]);
+  }, [campaigns, selectedCampaignIds]);
 
   const router = useRouter();
   

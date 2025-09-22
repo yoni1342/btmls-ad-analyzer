@@ -23,6 +23,10 @@ export async function getBrandDashboardData(
   sentiment?: string,
   funnel?: string,
   angel?: string,
+  campaignStatus?: string,
+  campaignObjective?: string,
+  adsetStatus?: string,
+  adsetOptimization?: string,
   searchQuery?: string,
   returnFullData: boolean = false  // New parameter to control data return
 ) {
@@ -36,6 +40,10 @@ export async function getBrandDashboardData(
       sentiment_param: sentiment,
       funnel_param: funnel,
       angel_param: angel,
+      campaign_status_param: campaignStatus,
+      campaign_objective_param: campaignObjective,
+      adset_status_param: adsetStatus,
+      adset_optimization_param: adsetOptimization,
       return_full_data: returnFullData  // Pass the parameter to the database function
   });
 

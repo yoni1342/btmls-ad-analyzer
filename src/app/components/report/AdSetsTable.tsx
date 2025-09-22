@@ -91,11 +91,23 @@ export default function AdSetsTable({ adSets, selectedAdSetIds: controlledSelect
 
   // Handle ad sets data changes (but preserve order during session)
   useEffect(() => {
-    // Only update displayAdSets if it's completely empty (safety check)
-    if (displayAdSets.length === 0 && adSets.length > 0) {
-      setDisplayAdSets(adSets);
+    // Update displayAdSets when adSets data changes (due to filtering)
+    // But maintain selection-based ordering if we have selections
+    if (adSets.length > 0) {
+      if (selectedAdSetIds.length > 0) {
+        // Maintain order: selected ad sets first, then unselected
+        const selectedAdSets = adSets.filter(adSet => selectedAdSetIds.includes(adSet.ad_set_id));
+        const unselectedAdSets = adSets.filter(adSet => !selectedAdSetIds.includes(adSet.ad_set_id));
+        setDisplayAdSets([...selectedAdSets, ...unselectedAdSets]);
+      } else {
+        // No selections, just use the ad sets as-is
+        setDisplayAdSets(adSets);
+      }
+    } else {
+      // No ad sets data, clear display
+      setDisplayAdSets([]);
     }
-  }, [adSets, displayAdSets.length]);
+  }, [adSets, selectedAdSetIds]);
 
   const router = useRouter();
   

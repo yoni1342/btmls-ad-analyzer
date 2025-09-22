@@ -61,6 +61,10 @@ function BrandsContent() {
     sentiment,
     funnel,
     angel,
+    campaignStatus,
+    campaignObjective,
+    adsetStatus,
+    adsetOptimization,
     searchQuery,
     selectedTab,
     brandData,
@@ -77,6 +81,10 @@ function BrandsContent() {
     setSentiment,
     setFunnel,
     setAngel,
+    setCampaignStatus,
+    setCampaignObjective,
+    setAdsetStatus,
+    setAdsetOptimization,
     setSearchQuery,
     setSelectedTab,
     setBrandData,
@@ -98,6 +106,43 @@ function BrandsContent() {
   const [commentSentimentFilter, setCommentSentimentFilter] = useState('');
   const [commentClusterFilter, setCommentClusterFilter] = useState('');
   const [commentAngleTypeFilter, setCommentAngleTypeFilter] = useState('');
+  
+  // Store all angle types from the original unfiltered data to persist dropdown options
+  const [allAngleTypes, setAllAngleTypes] = useState<string[]>([]);
+
+  // Fetch all angle types for the brand (unfiltered) to populate dropdown
+  useEffect(() => {
+    const fetchAllAngleTypes = async () => {
+      if (!selectedBrand) return;
+      try {
+        // Fetch unfiltered data to get all possible angle types
+        const allData = await getBrandDashboardData(
+          selectedBrand.id,
+          dateRange,
+          sentiment,
+          'all', // No funnel filter
+          'all', // No angel filter
+          'all', // No campaign status filter
+          'all', // No campaign objective filter
+          'all', // No adset status filter
+          'all', // No adset optimization filter
+          undefined,
+          true
+        );
+        
+        if (allData.ads && allData.ads.length > 0) {
+          const uniqueAngleTypes = Array.from(new Set(
+            allData.ads.map((ad: any) => ad.angle_type || 'Unknown')
+          )).sort();
+          setAllAngleTypes(uniqueAngleTypes);
+        }
+      } catch (err) {
+        console.error('Error fetching all angle types:', err);
+      }
+    };
+    
+    fetchAllAngleTypes();
+  }, [selectedBrand, dateRange, sentiment]); // Only refetch when brand or date changes
 
   useEffect(() => {
   if (initialBrand) {
@@ -134,10 +179,15 @@ function BrandsContent() {
           sentiment,
           funnel,
           angel,
+          campaignStatus,
+          campaignObjective,
+          adsetStatus,
+          adsetOptimization,
           undefined, // searchQuery should not affect dashboard data
           true
         );
         setBrandData(result);
+        
         if (result.untracked_info) {
           setUntrackedInfo({
             adsCount: result.untracked_info.untracked_ads_count,
@@ -161,7 +211,7 @@ function BrandsContent() {
     };
 
     fetchBrandData();
-  }, [selectedBrand, dateRange, sentiment, funnel, angel, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
+  }, [selectedBrand, dateRange, sentiment, funnel, angel, campaignStatus, campaignObjective, adsetStatus, adsetOptimization, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
   
 
   // Populate campaigns data from dashboard data
@@ -171,7 +221,7 @@ function BrandsContent() {
       return;
     }
     setCampaignsData(brandData.campaigns || []);
-  }, [selectedBrand, brandData]);
+  }, [selectedBrand, brandData, campaignStatus, campaignObjective]);
 
   // Populate ad sets data from dashboard data, filter by selected campaigns
   useEffect(() => {
@@ -184,7 +234,7 @@ function BrandsContent() {
       adSets = adSets.filter(adSet => selectedCampaignIds.includes(adSet.campaign_id?.toString()));
     }
     setAdSetsData(adSets);
-  }, [selectedBrand, brandData, selectedCampaignIds]);
+  }, [selectedBrand, brandData, selectedCampaignIds, adsetStatus, adsetOptimization]);
 
   // Clear ad set selections when campaign selections change
   useEffect(() => {
@@ -245,6 +295,11 @@ function BrandsContent() {
         sentiment: sentiment && sentiment !== 'all' ? sentiment : undefined,
         funnel: funnel && funnel !== 'all' ? funnel : undefined,
         angel: angel && angel !== 'all' ? angel : undefined,
+        // New campaign and adset filters
+        campaignStatus: campaignStatus && campaignStatus !== 'all' ? campaignStatus : undefined,
+        campaignObjective: campaignObjective && campaignObjective !== 'all' ? campaignObjective : undefined,
+        adsetStatus: adsetStatus && adsetStatus !== 'all' ? adsetStatus : undefined,
+        adsetOptimization: adsetOptimization && adsetOptimization !== 'all' ? adsetOptimization : undefined,
         searchQuery: searchQuery || undefined,
         selectedAdIds: selectedAdIds.length > 0 ? selectedAdIds : undefined,
         // Comment-specific filters
@@ -374,8 +429,16 @@ function BrandsContent() {
           ads = ads.filter(ad => (ad.funnel || '').toString() === funnel);
         }
         if (angel && angel !== 'all') {
-          const val = angel.toLowerCase();
-          ads = ads.filter(ad => (ad.angle_type || '').toString().toLowerCase() === val);
+          ads = ads.filter(ad => {
+            // Handle both null/undefined and the string 'Unknown'
+            const adAngleType = ad.angle_type || 'Unknown';
+            // For database records, angle_type could be null, undefined, or empty string
+            // All of these should match when 'Unknown' is selected
+            if (angel === 'Unknown') {
+              return !ad.angle_type || ad.angle_type === '' || ad.angle_type === 'Unknown';
+            }
+            return adAngleType === angel;
+          });
         }
         if (searchQuery && searchQuery.trim() !== '') {
           const q = searchQuery.toLowerCase();
@@ -544,6 +607,40 @@ function BrandsContent() {
               <>
                 <h3 className="text-lg font-medium mb-4">All Campaigns</h3>
                 <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                  {/* Campaign Filter Controls */}
+                  <div className="mb-4 flex gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Filter by Status
+                      </label>
+                      <select
+                        value={campaignStatus}
+                        onChange={(e) => setCampaignStatus(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                      >
+                        <option value="all">All Statuses</option>
+                        {brandData?.campaigns && Array.from(new Set(brandData.campaigns.map((campaign: any) => campaign.status).filter(Boolean))).sort().map((status: any) => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Filter by Objective
+                      </label>
+                      <select
+                        value={campaignObjective}
+                        onChange={(e) => setCampaignObjective(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                      >
+                        <option value="all">All Objectives</option>
+                        {brandData?.campaigns && Array.from(new Set(brandData.campaigns.map((campaign: any) => campaign.objective).filter(Boolean))).sort().map((objective: any) => (
+                          <option key={objective} value={objective}>{objective}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   {loading ? (
                     <div className="flex justify-center items-center h-64">
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
@@ -582,6 +679,40 @@ function BrandsContent() {
                   )}
                 </div>
                 <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+                  {/* AdSet Filter Controls */}
+                  <div className="mb-4 flex gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Filter by Status
+                      </label>
+                      <select
+                        value={adsetStatus}
+                        onChange={(e) => setAdsetStatus(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                      >
+                        <option value="all">All Statuses</option>
+                        {brandData?.ad_sets && Array.from(new Set(brandData.ad_sets.map((adset: any) => adset.status).filter(Boolean))).sort().map((status: any) => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Filter by Optimization Goal
+                      </label>
+                      <select
+                        value={adsetOptimization}
+                        onChange={(e) => setAdsetOptimization(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                      >
+                        <option value="all">All Optimization Goals</option>
+                        {brandData?.ad_sets && Array.from(new Set(brandData.ad_sets.map((adset: any) => adset.optimization_goal).filter(Boolean))).sort().map((goal: any) => (
+                          <option key={goal} value={goal}>{goal}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   {loading ? (
                     <div className="flex justify-center items-center h-64">
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
@@ -650,9 +781,14 @@ function BrandsContent() {
                         className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
                       >
                         <option value="all">All Angels</option>
-                        {brandData?.ads && Array.from(new Set(brandData.ads.map(ad => ad.angle_type || 'Unknown'))).map(angelType => (
-                          <option key={angelType} value={angelType}>{angelType}</option>
-                        ))}
+                        {allAngleTypes.length > 0 
+                          ? allAngleTypes.map(angelType => (
+                              <option key={angelType} value={angelType}>{angelType}</option>
+                            ))
+                          : brandData?.ads && Array.from(new Set(brandData.ads.map(ad => ad.angle_type || 'Unknown'))).map(angelType => (
+                              <option key={angelType} value={angelType}>{angelType}</option>
+                            ))
+                        }
                       </select>
                     </div>
                   </div>
@@ -791,6 +927,26 @@ function BrandsContent() {
                     {(angel && angel !== 'all') && (
                       <div>
                         <strong>Angel Filter:</strong> {angel}
+                      </div>
+                    )}
+                    {(campaignStatus && campaignStatus !== 'all') && (
+                      <div>
+                        <strong>Campaign Status Filter:</strong> {campaignStatus}
+                      </div>
+                    )}
+                    {(campaignObjective && campaignObjective !== 'all') && (
+                      <div>
+                        <strong>Campaign Objective Filter:</strong> {campaignObjective}
+                      </div>
+                    )}
+                    {(adsetStatus && adsetStatus !== 'all') && (
+                      <div>
+                        <strong>AdSet Status Filter:</strong> {adsetStatus}
+                      </div>
+                    )}
+                    {(adsetOptimization && adsetOptimization !== 'all') && (
+                      <div>
+                        <strong>AdSet Optimization Filter:</strong> {adsetOptimization}
                       </div>
                     )}
                     {searchQuery && (
