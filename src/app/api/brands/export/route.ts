@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
-import { getBrandDashboardData } from '@/app/actions';
+import { getBrandTablesData } from '@/app/actions';
 
 export async function POST(request: Request) {
   try {
@@ -28,28 +28,70 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'brandId is required' }, { status: 400 });
     }
 
-    // Fetch ads data using dashboard function with ads date range
-    const dashData = await getBrandDashboardData(
+    // Fetch all data using paginated function with high limits to get complete datasets
+    
+    // Get all ads data
+    const adsData = await getBrandTablesData(
       brandId,
       adsDateRange ? { start: new Date(adsDateRange.startDate), end: new Date(adsDateRange.endDate) } : undefined,
-      sentiment,
-      funnel,
-      angel,
-      campaignStatus,
-      campaignObjective,
-      adsetStatus,
-      adsetOptimization,
-      searchQuery,
-      true // return full data for export
+      {
+        sentiment,
+        funnel,
+        angel,
+        campaignStatus,
+        campaignObjective,
+        adsetStatus,
+        adsetOptimization
+      },
+      'ads', // Primary table
+      1, // Page 1
+      999999 // High limit to get all records
     );
-    const ads = dashData.ads || [];
-    const campaigns = dashData.campaigns || [];
-    const adSets = dashData.ad_sets || [];
+    
+    // Get all campaigns data
+    const campaignsData = await getBrandTablesData(
+      brandId,
+      adsDateRange ? { start: new Date(adsDateRange.startDate), end: new Date(adsDateRange.endDate) } : undefined,
+      {
+        sentiment,
+        funnel,
+        angel,
+        campaignStatus,
+        campaignObjective,
+        adsetStatus,
+        adsetOptimization
+      },
+      'campaigns', // Primary table
+      1, // Page 1
+      999999 // High limit to get all records
+    );
+    
+    // Get all ad sets data
+    const adSetsData = await getBrandTablesData(
+      brandId,
+      adsDateRange ? { start: new Date(adsDateRange.startDate), end: new Date(adsDateRange.endDate) } : undefined,
+      {
+        sentiment,
+        funnel,
+        angel,
+        campaignStatus,
+        campaignObjective,
+        adsetStatus,
+        adsetOptimization
+      },
+      'adsets', // Primary table
+      1, // Page 1
+      999999 // High limit to get all records
+    );
+    
+    const ads = adsData?.ads || [];
+    const campaigns = campaignsData?.campaigns || [];
+    const adSets = adSetsData?.ad_sets || [];
 
     // Fetch comments data using get_filtered_data with comments date range
     const adIdsToFilter = selectedAdIds && selectedAdIds.length > 0
       ? selectedAdIds
-      : ads.map(ad => ad.ad_id);
+      : ads.map((ad: any) => ad.ad_id);
 
     const { data: comments, error } = await supabase.rpc('get_filtered_data', {
       brand_id_param: parseInt(brandId, 10),
@@ -70,7 +112,7 @@ export async function POST(request: Request) {
     const safeComments = comments || [];
 
     // Prepare Ads sheet
-    const adsSheet = ads.map(ad => ({
+    const adsSheet = ads.map((ad: any) => ({
       AdID: ad.ad_id,
       Name: ad.ad_name,
       Text: ad.ad_text,

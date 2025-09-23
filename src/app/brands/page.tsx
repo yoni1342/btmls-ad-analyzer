@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import SidebarLayout from '../components/SidebarLayout';
 import { Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { getBrands, getBrandDashboardData } from '@/app/actions';
+import { getBrands, getBrandOverviewData, getBrandTablesData } from '@/app/actions';
 import { useAppStore } from '@/lib/store';
 import BrandSelector from '../components/BrandSelector';
 import FilterBar from '../components/FilterBar';
@@ -18,6 +18,7 @@ import AdTable from '../components/report/AdTable';
 import CampaignTable from '../components/report/CampaignTable';
 import AdSetsTable from '../components/report/AdSetsTable';
 import CommentTable from '../components/report/CommentTable';
+import Pagination from '../components/Pagination';
 
 export default function BrandsPage() {
   const router = useRouter();
@@ -68,6 +69,8 @@ function BrandsContent() {
     searchQuery,
     selectedTab,
     brandData,
+    overviewData,
+    tablesData,
     loading,
     untrackedAdsCount,
     untrackedCommentsCount,
@@ -75,6 +78,12 @@ function BrandsContent() {
     untrackedCommentIds,
     isAdAnalyzing,
     isCommentAnalyzing,
+    currentPage,
+    totalPages,
+    totalRecords,
+    pageSize,
+    hasNext,
+    hasPrevious,
     setBrands,
     setSelectedBrand,
     setDateRange,
@@ -88,9 +97,14 @@ function BrandsContent() {
     setSearchQuery,
     setSelectedTab,
     setBrandData,
+    setOverviewData,
+    setTablesData,
     setLoading,
     setUntrackedInfo,
     setAnalyzingStatus,
+    setPagination,
+    setCurrentPage,
+    setPageSize,
   } = useAppStore();
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
@@ -119,24 +133,27 @@ function BrandsContent() {
       
       try {
         // Fetch unfiltered data to get all possible angle types
-        const allData = await getBrandDashboardData(
+        const allData = await getBrandTablesData(
           selectedBrand.id,
           dateRange,
-          sentiment,
-          'all', // No funnel filter
-          'all', // No angel filter
-          'all', // No campaign status filter
-          'all', // No campaign objective filter
-          'all', // No adset status filter
-          'all', // No adset optimization filter
-          undefined,
-          true
+          {
+            sentiment,
+            funnel: 'all', // No funnel filter
+            angel: 'all', // No angel filter
+            campaignStatus: 'all', // No campaign status filter
+            campaignObjective: 'all', // No campaign objective filter
+            adsetStatus: 'all', // No adset status filter
+            adsetOptimization: 'all', // No adset optimization filter
+          },
+          'ads', // Get ads to extract angle types
+          1,
+          1000 // Get a large sample to find all angle types
         );
         
         if (allData.ads && allData.ads.length > 0) {
           const uniqueAngleTypes = Array.from(new Set(
             allData.ads.map((ad: any) => ad.angle_type || 'Unknown')
-          )).sort();
+          )).sort() as string[];
           setAllAngleTypes(uniqueAngleTypes);
         }
       } catch (err) {
@@ -176,33 +193,69 @@ function BrandsContent() {
       if (!selectedBrand) return;
       setLoading(true);
       try {
-        const result = await getBrandDashboardData(
-          selectedBrand.id,
-          dateRange,
-          sentiment,
-          funnel,
-          angel,
-          campaignStatus,
-          campaignObjective,
-          adsetStatus,
-          adsetOptimization,
-          undefined, // searchQuery should not affect dashboard data
-          selectedTab !== 'overview' // Only get full data when NOT on overview tab
-        );
-        setBrandData(result);
+        let result;
+        if (selectedTab === 'overview') {
+          // Use overview function for overview tab (fast, aggregated data)
+          result = await getBrandOverviewData(
+            selectedBrand.id,
+            dateRange,
+            sentiment,
+            funnel,
+            angel,
+            campaignStatus,
+            campaignObjective,
+            adsetStatus,
+            adsetOptimization,
+            searchQuery
+          );
+          setOverviewData(result);
+          setBrandData(result); // Keep for backward compatibility
+        } else {
+          // Use paginated function for data tables
+          result = await getBrandTablesData(
+            selectedBrand.id,
+            dateRange,
+            {
+              sentiment,
+              funnel,
+              angel,
+              campaignStatus,
+              campaignObjective,
+              adsetStatus,
+              adsetOptimization
+            },
+            selectedTab as 'campaigns' | 'adsets' | 'ads' | 'comments',
+            currentPage,
+            pageSize
+          );
+          setTablesData(result);
+          setBrandData(result); // Keep for backward compatibility
+          
+          // Update pagination state
+          if (result.pagination) {
+            setPagination({
+              currentPage: result.pagination.page,
+              totalPages: result.pagination.total_pages,
+              totalRecords: result.pagination.total_records,
+              hasNext: result.pagination.has_next,
+              hasPrevious: result.pagination.has_previous,
+            });
+          }
+        }
         
-        if (result.untracked_info) {
+        // Handle untracked info and analyzing status - use the local result variable
+        if (result?.untracked_info) {
           setUntrackedInfo({
-            adsCount: result.untracked_info.untracked_ads_count,
-            commentsCount: result.untracked_info.untracked_comments_count,
+            adsCount: result.untracked_info.untracked_ads_count || 0,
+            commentsCount: result.untracked_info.untracked_comments_count || 0,
             adIds: result.untracked_info.untracked_ad_ids || [],
             commentIds: result.untracked_info.untracked_comment_ids || [],
           });
         }
-        if (result.brand_status) {
+        if (result?.brand_status) {
           setAnalyzingStatus({
-            ad: result.brand_status.is_ad_analyzing,
-            comment: result.brand_status.is_comment_analyzing,
+            ad: result.brand_status.is_ad_analyzing || false,
+            comment: result.brand_status.is_comment_analyzing || false,
           });
         }
       } catch (err) {
@@ -214,7 +267,7 @@ function BrandsContent() {
     };
 
     fetchBrandData();
-  }, [selectedBrand, dateRange, sentiment, funnel, angel, campaignStatus, campaignObjective, adsetStatus, adsetOptimization, setLoading, setBrandData, setUntrackedInfo, setAnalyzingStatus]);
+  }, [selectedBrand, dateRange, sentiment, funnel, angel, campaignStatus, campaignObjective, adsetStatus, adsetOptimization, selectedTab, currentPage, pageSize, searchQuery, setLoading, setBrandData, setOverviewData, setTablesData, setPagination, setUntrackedInfo, setAnalyzingStatus]);
   
 
   // Populate campaigns data from dashboard data
@@ -279,6 +332,27 @@ function BrandsContent() {
 
   const handleSelectBrand = (brand: { id: string; brand_name: string }) => {
     setSelectedBrand(brand.id === '' ? undefined : brand);
+  };
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+  };
+
+  const goToNextPage = () => {
+    if (hasNext) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (hasPrevious) {
+      setCurrentPage(currentPage - 1);
+    }
   };
 
   const doExport = async () => {
@@ -648,16 +722,34 @@ function BrandsContent() {
                     <div className="flex justify-center items-center h-64">
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
                     </div>
-                  ) : campaignsData && campaignsData.length > 0 ? (
-                    <CampaignTable
-                      campaigns={campaignsData}
-                      selectedCampaignIds={selectedCampaignIds}
-                      onSelectedCampaignIdsChange={setSelectedCampaignIds}
-                    />
                   ) : (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      No campaigns found for this brand.
-                    </div>
+                    <>
+                      {tablesData?.campaigns && tablesData.campaigns.length > 0 ? (
+                        <CampaignTable
+                          campaigns={tablesData.campaigns}
+                          selectedCampaignIds={selectedCampaignIds}
+                          onSelectedCampaignIdsChange={setSelectedCampaignIds}
+                        />
+                      ) : (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          No campaigns found for this brand.
+                        </div>
+                      )}
+                      
+                      {/* Pagination for campaigns */}
+                      {tablesData?.pagination && selectedTab === 'campaigns' && (
+                        <Pagination
+                          currentPage={currentPage}
+                          totalPages={totalPages}
+                          totalRecords={totalRecords}
+                          pageSize={pageSize}
+                          hasNext={hasNext}
+                          hasPrevious={hasPrevious}
+                          onPageChange={handlePageChange}
+                          onPageSizeChange={handlePageSizeChange}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </>
@@ -720,19 +812,34 @@ function BrandsContent() {
                     <div className="flex justify-center items-center h-64">
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
                     </div>
-                  ) : adSetsData && adSetsData.length > 0 ? (
-                    <AdSetsTable
-                      adSets={adSetsData}
-                      selectedAdSetIds={selectedAdSetIds}
-                      onSelectedAdSetIdsChange={setSelectedAdSetIds}
-                    />
                   ) : (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      {selectedCampaignIds.length > 0
-                        ? 'No ad sets found for the selected campaigns.'
-                        : 'No ad sets found for this brand.'
-                      }
-                    </div>
+                    <>
+                      {tablesData?.ad_sets && tablesData.ad_sets.length > 0 ? (
+                        <AdSetsTable
+                          adSets={tablesData.ad_sets}
+                          selectedAdSetIds={selectedAdSetIds}
+                          onSelectedAdSetIdsChange={setSelectedAdSetIds}
+                        />
+                      ) : (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          No ad sets found for this brand.
+                        </div>
+                      )}
+                      
+                      {/* Pagination for ad sets */}
+                      {tablesData?.pagination && selectedTab === 'adsets' && (
+                        <Pagination
+                          currentPage={currentPage}
+                          totalPages={totalPages}
+                          totalRecords={totalRecords}
+                          pageSize={pageSize}
+                          hasNext={hasNext}
+                          hasPrevious={hasPrevious}
+                          onPageChange={handlePageChange}
+                          onPageSizeChange={handlePageSizeChange}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </>
@@ -797,18 +904,39 @@ function BrandsContent() {
                   </div>
 
                   <>
-                    <AdsTableWithFiltering
-                      selectedBrand={selectedBrand}
-                      selectedAdSetIds={selectedAdSetIds}
-                      dateRange={dateRange}
-                      funnel={funnel}
-                      angel={angel}
-                      searchQuery={searchQuery}
-                      selectedAdIds={selectedAdIds}
-                      setSelectedAdIds={setSelectedAdIds}
-                      loading={loading}
-                    />
-                    
+                    {loading ? (
+                      <div className="flex justify-center items-center h-64">
+                        <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+                      </div>
+                    ) : (
+                      <>
+                        {tablesData?.ads && tablesData.ads.length > 0 ? (
+                          <AdTable
+                            ads={tablesData.ads}
+                            selectedAdIds={selectedAdIds}
+                            onSelectedAdIdsChange={setSelectedAdIds}
+                          />
+                        ) : (
+                          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                            No ads found for this brand.
+                          </div>
+                        )}
+                        
+                        {/* Pagination for ads */}
+                        {tablesData?.pagination && selectedTab === 'ads' && (
+                          <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalRecords={totalRecords}
+                            pageSize={pageSize}
+                            hasNext={hasNext}
+                            hasPrevious={hasPrevious}
+                            onPageChange={handlePageChange}
+                            onPageSizeChange={handlePageSizeChange}
+                          />
+                        )}
+                      </>
+                    )}
                   </>
                 </div>
               </>
@@ -822,22 +950,40 @@ function BrandsContent() {
                     <div className="flex justify-center items-center h-64">
                       <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
                     </div>
-                  ) : filteredComments && filteredComments.length > 0 ? (
-                    <CommentTable
-                    comments={filteredComments}
-                    ads={brandData?.ads || []}
-                    selectedAdIds={selectedAdIds}
-                    sentimentFilter={commentSentimentFilter}
-                    setSentimentFilter={setCommentSentimentFilter}
-                    clusterFilter={commentClusterFilter}
-                    setClusterFilter={setCommentClusterFilter}
-                    angleTypeFilter={commentAngleTypeFilter}
-                    setAngleTypeFilter={setCommentAngleTypeFilter}
-                    />
                   ) : (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      No comments found for this brand.
-                    </div>
+                    <>
+                      {tablesData?.comments && tablesData.comments.length > 0 ? (
+                        <CommentTable
+                          comments={tablesData.comments}
+                          ads={tablesData?.ads || []}
+                          selectedAdIds={selectedAdIds}
+                          sentimentFilter={commentSentimentFilter}
+                          setSentimentFilter={setCommentSentimentFilter}
+                          clusterFilter={commentClusterFilter}
+                          setClusterFilter={setCommentClusterFilter}
+                          angleTypeFilter={commentAngleTypeFilter}
+                          setAngleTypeFilter={setCommentAngleTypeFilter}
+                        />
+                      ) : (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          No comments found for this brand.
+                        </div>
+                      )}
+                      
+                      {/* Pagination for comments */}
+                      {tablesData?.pagination && selectedTab === 'comments' && (
+                        <Pagination
+                          currentPage={currentPage}
+                          totalPages={totalPages}
+                          totalRecords={totalRecords}
+                          pageSize={pageSize}
+                          hasNext={hasNext}
+                          hasPrevious={hasPrevious}
+                          onPageChange={handlePageChange}
+                          onPageSizeChange={handlePageSizeChange}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </>

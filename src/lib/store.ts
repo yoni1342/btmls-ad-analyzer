@@ -15,6 +15,8 @@ export type AppState = {
   searchQuery: string;
   selectedTab: string;
   brandData: DashboardData | null;
+  overviewData: DashboardData | null; // Separate state for overview data
+  tablesData: any | null; // Separate state for paginated tables data
   loading: boolean;
   untrackedAdsCount: number;
   untrackedCommentsCount: number;
@@ -22,6 +24,14 @@ export type AppState = {
   untrackedCommentIds: string[];
   isAdAnalyzing: boolean;
   isCommentAnalyzing: boolean;
+  
+  // Pagination state
+  currentPage: number;
+  totalPages: number;
+  totalRecords: number;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
 
   setBrands: (brands: { id: string; brand_name: string }[]) => void;
   setSelectedBrand: (brand?: { id: string; brand_name: string }) => void;
@@ -36,6 +46,8 @@ export type AppState = {
   setSearchQuery: (query: string) => void;
   setSelectedTab: (tab: string) => void;
   setBrandData: (data: DashboardData | null) => void;
+  setOverviewData: (data: DashboardData | null) => void;
+  setTablesData: (data: any | null) => void;
   setLoading: (loading: boolean) => void;
   setUntrackedInfo: (info: {
     adsCount: number;
@@ -44,6 +56,17 @@ export type AppState = {
     commentIds: string[];
   }) => void;
   setAnalyzingStatus: (status: { ad: boolean; comment: boolean }) => void;
+  
+  // Pagination setters
+  setPagination: (pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalRecords: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  }) => void;
+  setCurrentPage: (page: number) => void;
+  setPageSize: (size: number) => void;
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -63,6 +86,8 @@ export const useAppStore = create<AppState>((set) => ({
   searchQuery: '',
   selectedTab: 'overview',
   brandData: null,
+  overviewData: null,
+  tablesData: null,
   loading: false,
   untrackedAdsCount: 0,
   untrackedCommentsCount: 0,
@@ -70,20 +95,37 @@ export const useAppStore = create<AppState>((set) => ({
   untrackedCommentIds: [],
   isAdAnalyzing: false,
   isCommentAnalyzing: false,
+  
+  // Pagination state
+  currentPage: 1,
+  totalPages: 0,
+  totalRecords: 0,
+  pageSize: 50,
+  hasNext: false,
+  hasPrevious: false,
 
   setBrands: (brands) => set({ brands }),
-  setSelectedBrand: (brand) => set({ selectedBrand: brand, selectedTab: 'overview', brandData: null }),
-  setDateRange: (range) => set({ dateRange: range }),
-  setSentiment: (sentiment) => set({ sentiment }),
-  setFunnel: (funnel) => set({ funnel }),
-  setAngel: (angel) => set({ angel }),
-  setCampaignStatus: (status) => set({ campaignStatus: status }),
-  setCampaignObjective: (objective) => set({ campaignObjective: objective }),
-  setAdsetStatus: (status) => set({ adsetStatus: status }),
-  setAdsetOptimization: (optimization) => set({ adsetOptimization: optimization }),
+  setSelectedBrand: (brand) => set({ 
+    selectedBrand: brand, 
+    selectedTab: 'overview', 
+    brandData: null, 
+    overviewData: null, 
+    tablesData: null,
+    currentPage: 1  // Reset pagination when changing brand
+  }),
+  setDateRange: (range) => set({ dateRange: range, currentPage: 1 }),
+  setSentiment: (sentiment) => set({ sentiment, currentPage: 1 }),
+  setFunnel: (funnel) => set({ funnel, currentPage: 1 }),
+  setAngel: (angel) => set({ angel, currentPage: 1 }),
+  setCampaignStatus: (status) => set({ campaignStatus: status, currentPage: 1 }),
+  setCampaignObjective: (objective) => set({ campaignObjective: objective, currentPage: 1 }),
+  setAdsetStatus: (status) => set({ adsetStatus: status, currentPage: 1 }),
+  setAdsetOptimization: (optimization) => set({ adsetOptimization: optimization, currentPage: 1 }),
   setSearchQuery: (query) => set({ searchQuery: query }),
-  setSelectedTab: (tab) => set({ selectedTab: tab }),
+  setSelectedTab: (tab) => set({ selectedTab: tab, currentPage: 1 }), // Reset pagination on tab change
   setBrandData: (data) => set({ brandData: data }),
+  setOverviewData: (data) => set({ overviewData: data }),
+  setTablesData: (data) => set({ tablesData: data }),
   setLoading: (loading) => set({ loading }),
   setUntrackedInfo: (info) =>
     set({
@@ -94,4 +136,15 @@ export const useAppStore = create<AppState>((set) => ({
     }),
   setAnalyzingStatus: (status) =>
     set({ isAdAnalyzing: status.ad, isCommentAnalyzing: status.comment }),
+    
+  // Pagination setters
+  setPagination: (pagination) => set({
+    currentPage: pagination.currentPage,
+    totalPages: pagination.totalPages,
+    totalRecords: pagination.totalRecords,
+    hasNext: pagination.hasNext,
+    hasPrevious: pagination.hasPrevious,
+  }),
+  setCurrentPage: (page) => set({ currentPage: page }),
+  setPageSize: (size) => set({ pageSize: size, currentPage: 1 }),
 }));
