@@ -111,9 +111,12 @@ function BrandsContent() {
   const [allAngleTypes, setAllAngleTypes] = useState<string[]>([]);
 
   // Fetch all angle types for the brand (unfiltered) to populate dropdown
+  // Only fetch when we're on a data table tab that needs this data
   useEffect(() => {
     const fetchAllAngleTypes = async () => {
       if (!selectedBrand) return;
+      if (selectedTab === 'overview') return; // Skip for overview tab
+      
       try {
         // Fetch unfiltered data to get all possible angle types
         const allData = await getBrandDashboardData(
@@ -142,7 +145,7 @@ function BrandsContent() {
     };
     
     fetchAllAngleTypes();
-  }, [selectedBrand, dateRange, sentiment]); // Only refetch when brand or date changes
+  }, [selectedBrand, dateRange, sentiment, selectedTab]); // Include selectedTab in dependencies
 
   useEffect(() => {
   if (initialBrand) {
@@ -184,7 +187,7 @@ function BrandsContent() {
           adsetStatus,
           adsetOptimization,
           undefined, // searchQuery should not affect dashboard data
-          true
+          selectedTab !== 'overview' // Only get full data when NOT on overview tab
         );
         setBrandData(result);
         

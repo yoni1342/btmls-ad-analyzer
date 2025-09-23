@@ -33,19 +33,67 @@ export async function getBrandDashboardData(
   // Check if this is a lifetime query (start date is Unix epoch)
   const isLifetimeQuery = dateRange?.start && dateRange.start.getTime() === 0;
   
-  const { data, error } = await supabase.rpc('get_dashboard_data', {
-  brand_id_param: brandId ? parseInt(brandId, 10) : null,
-  start_date_param: isLifetimeQuery ? null : dateRange?.start?.toISOString() || null,
-  end_date_param: isLifetimeQuery ? null : dateRange?.end?.toISOString() || null,
-      sentiment_param: sentiment,
-      funnel_param: funnel,
-      angel_param: angel,
-      campaign_status_param: campaignStatus,
-      campaign_objective_param: campaignObjective,
-      adset_status_param: adsetStatus,
-      adset_optimization_param: adsetOptimization,
-      return_full_data: returnFullData  // Pass the parameter to the database function
-  });
+  let actualStartDate = dateRange?.start;
+  let actualEndDate = dateRange?.end;
+  
+  // If it's a lifetime query, get the actual date range from the database
+  if (isLifetimeQuery) {
+    try {
+      console.log('Lifetime query detected, fetching actual date range...');
+      const { data: dateRangeData, error: dateRangeError } = await supabase.rpc('get_data_date_range', {
+        brand_id_param: brandId ? parseInt(brandId, 10) : null
+      });
+      
+      if (dateRangeError) {
+        console.error('Error fetching date range:', dateRangeError);
+        // Fall back to null dates if date range fetch fails
+        actualStartDate = null;
+        actualEndDate = null;
+      } else {
+        console.log('Date range data:', dateRangeData);
+        const overallRange = dateRangeData?.overall_date_range;
+        if (overallRange?.min_date && overallRange?.max_date) {
+          actualStartDate = new Date(overallRange.min_date);
+          actualEndDate = new Date(overallRange.max_date);
+          console.log(`Converted lifetime query to date range: ${actualStartDate.toISOString()} to ${actualEndDate.toISOString()}`);
+        } else {
+          console.warn('No date range data found, using null dates');
+          actualStartDate = null;
+          actualEndDate = null;
+        }
+      }
+    } catch (error) {
+      console.error('Error in date range conversion:', error);
+      // Fall back to null dates
+      actualStartDate = null;
+      actualEndDate = null;
+    }
+  }
+  
+  // For overview tab (returnFullData = false), use the optimized overview function
+  // For data tables (returnFullData = true), use the regular function with pagination later
+  const functionName = returnFullData ? 'get_dashboard_data' : 'get_brands_overview_data';
+  
+  const params: any = {
+    brand_id_param: brandId ? parseInt(brandId, 10) : null,
+    start_date_param: actualStartDate?.toISOString() || null,
+    end_date_param: actualEndDate?.toISOString() || null,
+    sentiment_param: sentiment,
+    funnel_param: funnel,
+    angel_param: angel,
+    campaign_status_param: campaignStatus,
+    campaign_objective_param: campaignObjective,
+    adset_status_param: adsetStatus,
+    adset_optimization_param: adsetOptimization
+  };
+  
+  // Only add return_full_data for the regular function
+  if (returnFullData) {
+    params.return_full_data = returnFullData;
+  }
+  
+  console.log(`Using ${functionName} for ${returnFullData ? 'data tables' : 'overview tab'}`);
+  const { data, error } = await supabase.rpc(functionName, params);
 
   if (error) {
     console.error('Error fetching dashboard data:', error);
@@ -56,8 +104,8 @@ export async function getBrandDashboardData(
  
   const { data: comparisonData, error: comparisonError } = await supabase.rpc('get_sentiments_with_comparison', {
   	brand_id_param: brandId ? parseInt(brandId, 10) : null,
-  	start_date_param: isLifetimeQuery ? null : dateRange?.start?.toISOString() || null,
-  	end_date_param: isLifetimeQuery ? null : dateRange?.end?.toISOString() || null,
+  	start_date_param: actualStartDate?.toISOString() || null,
+  	end_date_param: actualEndDate?.toISOString() || null,
   	ad_ids_param: null,
   	sentiment_param: sentiment,
   	cluster_param: null,
