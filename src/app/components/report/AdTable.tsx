@@ -17,8 +17,6 @@ interface Ad {
   ad_text?: string;
   angle_type?: string;
   target_audience?: string;
-  image_url?: string;
-  video_url?: string;
   post_link?: string;
   funnel?: string;
   total_comments?: number; // Total unfiltered comment count for this ad
@@ -92,8 +90,6 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
     }
   }, [ads, displayAds.length]);
 
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
   const router = useRouter();
   
   const columnHelper = createColumnHelper<Ad>();
@@ -192,41 +188,6 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
             {funnel}
           </span>
         );
-      },
-    }),
-    columnHelper.accessor('image_url', {
-      header: 'Image',
-      cell: info => {
-        const imageUrl = info.getValue();
-        return imageUrl ? (
-          <button
-            onClick={() => setLightboxImage(imageUrl)}
-            className="w-16 h-16 bg-gray-100 rounded overflow-hidden inline-flex items-center justify-center"
-          >
-            <img 
-              src={imageUrl} 
-              alt="Ad thumbnail" 
-              className="max-h-full max-w-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=No+Image';
-              }}
-            />
-          </button>
-        ) : 'No image';
-      },
-    }),
-    columnHelper.accessor('video_url', {
-      header: 'Video',
-      cell: info => {
-        const videoUrl = info.getValue();
-        return videoUrl ? (
-          <button
-            onClick={() => setVideoModalUrl(videoUrl)}
-            className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded text-xs"
-          >
-            Play Video
-          </button>
-        ) : 'No video';
       },
     }),
     columnHelper.accessor('post_link', {
@@ -347,47 +308,6 @@ export default function AdTable({ ads, selectedAdIds: controlledSelectedAdIds, o
         </div>
       </div>
 
-      {/* Image Lightbox */}
-      {lightboxImage && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onClick={() => setLightboxImage(null)}>
-          <div className="max-w-3xl max-h-[90vh] p-4 bg-white rounded-lg">
-            <img src={lightboxImage} alt="Ad" className="max-h-full max-w-full" />
-            <button 
-              className="absolute top-4 right-4 bg-white rounded-full p-2"
-              onClick={() => setLightboxImage(null)}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Video Modal */}
-      {videoModalUrl && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onClick={() => setVideoModalUrl(null)}>
-          <div className="max-w-3xl max-h-[90vh] p-4 bg-white rounded-lg">
-            <video 
-              src={videoModalUrl} 
-              controls 
-              autoPlay
-              className="max-h-full max-w-full"
-            />
-            <button 
-              className="absolute top-4 right-4 bg-white rounded-full p-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                setVideoModalUrl(null);
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

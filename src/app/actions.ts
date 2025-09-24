@@ -154,7 +154,16 @@ export async function getBrandTablesData(
   },
   primaryTable: 'campaigns' | 'adsets' | 'ads' | 'comments' = 'campaigns',
   page: number = 1,
-  limit: number = 50
+  limit: number = 50,
+  // NEW: Selection-based filtering parameters for interdependency
+  selectionFilters?: {
+    selectedCampaignIds?: string[],
+    selectedAdSetIds?: string[],
+    selectedAdIds?: string[],
+    commentSentiment?: string,
+    commentCluster?: string,
+    commentAngleType?: string
+  }
 ) {
   // Check if this is a lifetime query (start date is Unix epoch)
   const isLifetimeQuery = dateRange?.start && dateRange.start.getTime() === 0;
@@ -175,6 +184,13 @@ export async function getBrandTablesData(
     campaign_objective_param: filters?.campaignObjective,
     adset_status_param: filters?.adsetStatus,
     adset_optimization_param: filters?.adsetOptimization,
+    // NEW: Selection-based filtering parameters
+    selected_campaign_ids_param: selectionFilters?.selectedCampaignIds || null,
+    selected_adset_ids_param: selectionFilters?.selectedAdSetIds || null,
+    selected_ad_ids_param: selectionFilters?.selectedAdIds || null,
+    comment_sentiment_param: selectionFilters?.commentSentiment || null,
+    comment_cluster_param: selectionFilters?.commentCluster || null,
+    comment_angle_type_param: selectionFilters?.commentAngleType || null,
     primary_table_param: primaryTable,
     page_param: page,
     limit_param: limit

@@ -109,12 +109,9 @@ function BrandsContent() {
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
   const [selectedAdSetIds, setSelectedAdSetIds] = useState<string[]>([]);
-  const [campaignsData, setCampaignsData] = useState<any[]>([]);
-  const [adSetsData, setAdSetsData] = useState<any[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportAdsRange, setExportAdsRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
   const [exportCommentsRange, setExportCommentsRange] = useState<{ startDate: Date; endDate: Date }>({ startDate: dateRange.start, endDate: dateRange.end });
-  const [filteredComments, setFilteredComments] = useState<any[]>([]);
   
   // Comment table specific filters  
   const [commentSentimentFilter, setCommentSentimentFilter] = useState('');
@@ -211,7 +208,7 @@ function BrandsContent() {
           setOverviewData(result);
           setBrandData(result); // Keep for backward compatibility
         } else {
-          // Use paginated function for data tables
+          // Use paginated function for data tables with selection-based filtering
           result = await getBrandTablesData(
             selectedBrand.id,
             dateRange,
@@ -226,7 +223,16 @@ function BrandsContent() {
             },
             selectedTab as 'campaigns' | 'adsets' | 'ads' | 'comments',
             currentPage,
-            pageSize
+            pageSize,
+            // NEW: Selection-based filtering for interdependent behavior
+            {
+              selectedCampaignIds: selectedCampaignIds.length > 0 ? selectedCampaignIds : undefined,
+              selectedAdSetIds: selectedAdSetIds.length > 0 ? selectedAdSetIds : undefined,
+              selectedAdIds: selectedAdIds.length > 0 ? selectedAdIds : undefined,
+              commentSentiment: commentSentimentFilter || undefined,
+              commentCluster: commentClusterFilter || undefined,
+              commentAngleType: commentAngleTypeFilter || undefined
+            }
           );
           setTablesData(result);
           setBrandData(result); // Keep for backward compatibility
@@ -244,7 +250,12 @@ function BrandsContent() {
         }
         
         // Handle untracked info and analyzing status - use the local result variable
-        if (result?.untracked_info) {
+        // Only update untracked info if we have valid data (from overview tab)
+        // Otherwise persist existing counts to show across all tabs
+        if (result?.untracked_info && (
+          result.untracked_info.untracked_ads_count !== undefined ||
+          result.untracked_info.untracked_comments_count !== undefined
+        )) {
           setUntrackedInfo({
             adsCount: result.untracked_info.untracked_ads_count || 0,
             commentsCount: result.untracked_info.untracked_comments_count || 0,
@@ -252,6 +263,9 @@ function BrandsContent() {
             commentIds: result.untracked_info.untracked_comment_ids || [],
           });
         }
+        // Note: If result.untracked_info is empty (from paginated function),
+        // we don't call setUntrackedInfo, preserving the existing counts
+        
         if (result?.brand_status) {
           setAnalyzingStatus({
             ad: result.brand_status.is_ad_analyzing || false,
@@ -267,68 +281,17 @@ function BrandsContent() {
     };
 
     fetchBrandData();
-  }, [selectedBrand, dateRange, sentiment, funnel, angel, campaignStatus, campaignObjective, adsetStatus, adsetOptimization, selectedTab, currentPage, pageSize, searchQuery, setLoading, setBrandData, setOverviewData, setTablesData, setPagination, setUntrackedInfo, setAnalyzingStatus]);
+  }, [selectedBrand, dateRange, sentiment, funnel, angel, campaignStatus, campaignObjective, adsetStatus, adsetOptimization, selectedTab, currentPage, pageSize, searchQuery, selectedCampaignIds, selectedAdSetIds, selectedAdIds, commentSentimentFilter, commentClusterFilter, commentAngleTypeFilter, setLoading, setBrandData, setOverviewData, setTablesData, setPagination, setUntrackedInfo, setAnalyzingStatus]);
   
 
-  // Populate campaigns data from dashboard data
-  useEffect(() => {
-    if (!selectedBrand || !brandData) {
-      setCampaignsData([]);
-      return;
-    }
-    setCampaignsData(brandData.campaigns || []);
-  }, [selectedBrand, brandData, campaignStatus, campaignObjective]);
+  // NOTE: Client-side filtering removed - now handled by database function with selection-based filtering
+  // All table data is now pre-filtered by the database based on interdependent selections
 
-  // Populate ad sets data from dashboard data, filter by selected campaigns
-  useEffect(() => {
-    if (!selectedBrand || !brandData) {
-      setAdSetsData([]);
-      return;
-    }
-    let adSets = brandData.ad_sets || [];
-    if (selectedCampaignIds && selectedCampaignIds.length > 0) {
-      adSets = adSets.filter(adSet => selectedCampaignIds.includes(adSet.campaign_id?.toString()));
-    }
-    setAdSetsData(adSets);
-  }, [selectedBrand, brandData, selectedCampaignIds, adsetStatus, adsetOptimization]);
+  // Selection management for interdependent filtering
+  // NOTE: We no longer clear selections automatically since bidirectional filtering allows
+  // selections across all tables to coexist and influence each other
 
-  // Clear ad set selections when campaign selections change
-  useEffect(() => {
-    if (selectedCampaignIds.length === 0) {
-      // If no campaigns selected, keep current ad set selections
-      return;
-    }
-    
-    // Clear ad set selections when campaigns change to avoid inconsistent state
-    setSelectedAdSetIds([]);
-  }, [selectedCampaignIds]);
-
-  // Clear ad selections when ad set selections change
-  useEffect(() => {
-    if (selectedAdSetIds.length === 0) {
-      // If no ad sets selected, keep current ad selections
-      return;
-    }
-    
-    // Clear ad selections when ad sets change to avoid inconsistent state
-    setSelectedAdIds([]);
-  }, [selectedAdSetIds]);
-
-  // Use comments from dashboard data instead of fetching separately
-  useEffect(() => {
-    if (!selectedBrand || !brandData) return;
-    
-    // Use the comments from the main dashboard data
-    // This ensures consistency with the overview metrics
-    let comments = brandData.allComments || [];
-    
-    // If specific ads are selected, filter comments to those ads
-    if (selectedAdIds.length > 0) {
-      comments = comments.filter(c => selectedAdIds.includes(c.ad_id));
-    }
-    
-    setFilteredComments(comments);
-  }, [selectedBrand, brandData, selectedAdIds]);
+  // NOTE: Comments filtering now handled by database function based on all interdependent selections
 
   const handleSelectBrand = (brand: { id: string; brand_name: string }) => {
     setSelectedBrand(brand.id === '' ? undefined : brand);
@@ -466,101 +429,7 @@ function BrandsContent() {
     }
   };
 
-  // Component for ads table with hierarchical filtering
-  const AdsTableWithFiltering = ({
-    selectedBrand,
-    selectedAdSetIds,
-    dateRange,
-    funnel,
-    angel,
-    searchQuery,
-    selectedAdIds,
-    setSelectedAdIds,
-    loading
-  }: {
-    selectedBrand: any;
-    selectedAdSetIds: string[];
-    dateRange: any;
-    funnel: string;
-    angel: string;
-    searchQuery: string;
-    selectedAdIds: string[];
-    setSelectedAdIds: (ids: string[]) => void;
-    loading: boolean;
-  }) => {
-    const [filteredAds, setFilteredAds] = useState<any[]>([]);
-    const [adsLoading, setAdsLoading] = useState(false);
-
-    useEffect(() => {
-      if (!selectedBrand || !brandData) {
-        setFilteredAds([]);
-        return;
-      }
-      setAdsLoading(true);
-      try {
-        let ads = brandData.ads || [];
-        if (selectedAdSetIds && selectedAdSetIds.length > 0) {
-          ads = ads.filter(ad => ad.ad_set_id && selectedAdSetIds.includes(ad.ad_set_id.toString()));
-        }
-        if (funnel && funnel !== 'all') {
-          ads = ads.filter(ad => (ad.funnel || '').toString() === funnel);
-        }
-        if (angel && angel !== 'all') {
-          ads = ads.filter(ad => {
-            // Handle both null/undefined and the string 'Unknown'
-            const adAngleType = ad.angle_type || 'Unknown';
-            // For database records, angle_type could be null, undefined, or empty string
-            // All of these should match when 'Unknown' is selected
-            if (angel === 'Unknown') {
-              return !ad.angle_type || ad.angle_type === '' || ad.angle_type === 'Unknown';
-            }
-            return adAngleType === angel;
-          });
-        }
-        if (searchQuery && searchQuery.trim() !== '') {
-          const q = searchQuery.toLowerCase();
-          ads = ads.filter(ad =>
-            (ad.ad_name?.toLowerCase().includes(q)) ||
-            (ad.ad_text?.toLowerCase().includes(q)) ||
-            (ad.ad_title?.toLowerCase().includes(q))
-          );
-        }
-        setFilteredAds(ads);
-      } catch (err) {
-        console.error('Error filtering ads from dashboard data:', err);
-        setFilteredAds([]);
-      } finally {
-        setAdsLoading(false);
-      }
-    }, [selectedBrand, brandData, selectedAdSetIds, funnel, angel, searchQuery]);
-
-    if (loading || adsLoading) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
-        </div>
-      );
-    }
-
-    if (filteredAds.length === 0) {
-      return (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          {selectedAdSetIds.length > 0
-            ? 'No ads found for the selected ad sets with the current filters.'
-            : 'No ads found for this brand with the selected filters.'
-          }
-        </div>
-      );
-    }
-
-    return (
-      <AdTable
-        ads={filteredAds}
-        selectedAdIds={selectedAdIds}
-        onSelectedAdIdsChange={setSelectedAdIds}
-      />
-    );
-  };
+  // NOTE: AdsTableWithFiltering component removed - filtering now handled by database function
 
   return (
     <div className="container mx-auto py-8 px-4 relative">
@@ -682,7 +551,28 @@ function BrandsContent() {
 
             {selectedTab === 'campaigns' && (
               <>
-                <h3 className="text-lg font-medium mb-4">All Campaigns</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium">
+                    {(selectedAdSetIds.length > 0 || selectedAdIds.length > 0 || commentSentimentFilter || commentClusterFilter || commentAngleTypeFilter)
+                      ? 'Campaigns (Filtered by Selections)'
+                      : 'All Campaigns'
+                    }
+                  </h3>
+                  {(selectedAdSetIds.length > 0 || selectedAdIds.length > 0 || commentSentimentFilter || commentClusterFilter || commentAngleTypeFilter) && (
+                    <button
+                      onClick={() => {
+                        setSelectedAdSetIds([]);
+                        setSelectedAdIds([]);
+                        setCommentSentimentFilter('');
+                        setCommentClusterFilter('');
+                        setCommentAngleTypeFilter('');
+                      }}
+                      className="text-sm text-blue-500 hover:text-blue-700"
+                    >
+                      Clear All Filters
+                    </button>
+                  )}
+                </div>
                 <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
                   {/* Campaign Filter Controls */}
                   <div className="mb-4 flex gap-4">
@@ -759,17 +649,23 @@ function BrandsContent() {
               <>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium">
-                    {selectedCampaignIds.length > 0
-                      ? `Ad Sets from ${selectedCampaignIds.length} Selected Campaign${selectedCampaignIds.length > 1 ? 's' : ''}`
+                    {(selectedCampaignIds.length > 0 || selectedAdIds.length > 0 || commentSentimentFilter || commentClusterFilter || commentAngleTypeFilter)
+                      ? 'Ad Sets (Filtered by Selections)'
                       : 'All Ad Sets'
                     }
                   </h3>
-                  {selectedCampaignIds.length > 0 && (
+                  {(selectedCampaignIds.length > 0 || selectedAdIds.length > 0 || commentSentimentFilter || commentClusterFilter || commentAngleTypeFilter) && (
                     <button
-                      onClick={() => setSelectedCampaignIds([])}
+                      onClick={() => {
+                        setSelectedCampaignIds([]);
+                        setSelectedAdIds([]);
+                        setCommentSentimentFilter('');
+                        setCommentClusterFilter('');
+                        setCommentAngleTypeFilter('');
+                      }}
                       className="text-sm text-blue-500 hover:text-blue-700"
                     >
-                      Clear Campaign Filter
+                      Clear All Filters
                     </button>
                   )}
                 </div>
@@ -849,17 +745,23 @@ function BrandsContent() {
               <>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium">
-                    {selectedAdSetIds.length > 0
-                      ? `Ads from ${selectedAdSetIds.length} Selected Ad Set${selectedAdSetIds.length > 1 ? 's' : ''}`
+                    {(selectedCampaignIds.length > 0 || selectedAdSetIds.length > 0 || commentSentimentFilter || commentClusterFilter || commentAngleTypeFilter)
+                      ? 'Ads (Filtered by Selections)'
                       : 'All Ads'
                     }
                   </h3>
-                  {selectedAdSetIds.length > 0 && (
+                  {(selectedCampaignIds.length > 0 || selectedAdSetIds.length > 0 || commentSentimentFilter || commentClusterFilter || commentAngleTypeFilter) && (
                     <button
-                      onClick={() => setSelectedAdSetIds([])}
+                      onClick={() => {
+                        setSelectedCampaignIds([]);
+                        setSelectedAdSetIds([]);
+                        setCommentSentimentFilter('');
+                        setCommentClusterFilter('');
+                        setCommentAngleTypeFilter('');
+                      }}
                       className="text-sm text-blue-500 hover:text-blue-700"
                     >
-                      Clear Ad Set Filter
+                      Clear All Filters
                     </button>
                   )}
                 </div>
@@ -944,7 +846,26 @@ function BrandsContent() {
 
             {selectedTab === 'comments' && (
               <>
-                <h3 className="text-lg font-medium mb-4">All Comments</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium">
+                    {(selectedCampaignIds.length > 0 || selectedAdSetIds.length > 0 || selectedAdIds.length > 0)
+                      ? 'Comments (Filtered by Selections)'
+                      : 'All Comments'
+                    }
+                  </h3>
+                  {(selectedCampaignIds.length > 0 || selectedAdSetIds.length > 0 || selectedAdIds.length > 0) && (
+                    <button
+                      onClick={() => {
+                        setSelectedCampaignIds([]);
+                        setSelectedAdSetIds([]);
+                        setSelectedAdIds([]);
+                      }}
+                      className="text-sm text-blue-500 hover:text-blue-700"
+                    >
+                      Clear Selection Filters
+                    </button>
+                  )}
+                </div>
                 <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
                   {loading ? (
                     <div className="flex justify-center items-center h-64">
