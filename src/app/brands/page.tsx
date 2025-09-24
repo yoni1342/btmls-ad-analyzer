@@ -244,7 +244,12 @@ function BrandsContent() {
         }
         
         // Handle untracked info and analyzing status - use the local result variable
-        if (result?.untracked_info) {
+        // Only update untracked info if we have valid data (from overview tab)
+        // Otherwise persist existing counts to show across all tabs
+        if (result?.untracked_info && (
+          result.untracked_info.untracked_ads_count !== undefined ||
+          result.untracked_info.untracked_comments_count !== undefined
+        )) {
           setUntrackedInfo({
             adsCount: result.untracked_info.untracked_ads_count || 0,
             commentsCount: result.untracked_info.untracked_comments_count || 0,
@@ -252,6 +257,9 @@ function BrandsContent() {
             commentIds: result.untracked_info.untracked_comment_ids || [],
           });
         }
+        // Note: If result.untracked_info is empty (from paginated function),
+        // we don't call setUntrackedInfo, preserving the existing counts
+        
         if (result?.brand_status) {
           setAnalyzingStatus({
             ad: result.brand_status.is_ad_analyzing || false,

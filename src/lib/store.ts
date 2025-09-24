@@ -111,16 +111,85 @@ export const useAppStore = create<AppState>((set) => ({
     brandData: null, 
     overviewData: null, 
     tablesData: null,
-    currentPage: 1  // Reset pagination when changing brand
+    currentPage: 1,  // Reset pagination when changing brand
+    // Reset untracked counts when brand changes
+    untrackedAdsCount: 0,
+    untrackedCommentsCount: 0,
+    untrackedAdIds: [],
+    untrackedCommentIds: []
   }),
-  setDateRange: (range) => set({ dateRange: range, currentPage: 1 }),
-  setSentiment: (sentiment) => set({ sentiment, currentPage: 1 }),
-  setFunnel: (funnel) => set({ funnel, currentPage: 1 }),
-  setAngel: (angel) => set({ angel, currentPage: 1 }),
-  setCampaignStatus: (status) => set({ campaignStatus: status, currentPage: 1 }),
-  setCampaignObjective: (objective) => set({ campaignObjective: objective, currentPage: 1 }),
-  setAdsetStatus: (status) => set({ adsetStatus: status, currentPage: 1 }),
-  setAdsetOptimization: (optimization) => set({ adsetOptimization: optimization, currentPage: 1 }),
+  setDateRange: (range) => set({ 
+    dateRange: range, 
+    currentPage: 1,
+    // Reset untracked counts when date range changes (affects what's "untracked")
+    untrackedAdsCount: 0,
+    untrackedCommentsCount: 0,
+    untrackedAdIds: [],
+    untrackedCommentIds: []
+  }),
+  setSentiment: (sentiment) => set({ 
+    sentiment, 
+    currentPage: 1,
+    // Reset untracked counts when sentiment filter changes
+    untrackedAdsCount: 0,
+    untrackedCommentsCount: 0,
+    untrackedAdIds: [],
+    untrackedCommentIds: []
+  }),
+  setFunnel: (funnel) => set({ 
+    funnel, 
+    currentPage: 1,
+    // Reset untracked counts when funnel filter changes
+    untrackedAdsCount: 0,
+    untrackedCommentsCount: 0,
+    untrackedAdIds: [],
+    untrackedCommentIds: []
+  }),
+  setAngel: (angel) => set({ 
+    angel, 
+    currentPage: 1,
+    // Reset untracked counts when angel filter changes
+    untrackedAdsCount: 0,
+    untrackedCommentsCount: 0,
+    untrackedAdIds: [],
+    untrackedCommentIds: []
+  }),
+  setCampaignStatus: (status) => set({ 
+    campaignStatus: status, 
+    currentPage: 1,
+    // Reset untracked counts when campaign status changes
+    untrackedAdsCount: 0,
+    untrackedCommentsCount: 0,
+    untrackedAdIds: [],
+    untrackedCommentIds: []
+  }),
+  setCampaignObjective: (objective) => set({ 
+    campaignObjective: objective, 
+    currentPage: 1,
+    // Reset untracked counts when campaign objective changes
+    untrackedAdsCount: 0,
+    untrackedCommentsCount: 0,
+    untrackedAdIds: [],
+    untrackedCommentIds: []
+  }),
+  setAdsetStatus: (status) => set({ 
+    adsetStatus: status, 
+    currentPage: 1,
+    // Reset untracked counts when adset status changes
+    untrackedAdsCount: 0,
+    untrackedCommentsCount: 0,
+    untrackedAdIds: [],
+    untrackedCommentIds: []
+  }),
+  setAdsetOptimization: (optimization) => set({ 
+    adsetOptimization: optimization, 
+    currentPage: 1,
+    // Reset untracked counts when adset optimization changes
+    untrackedAdsCount: 0,
+    untrackedCommentsCount: 0,
+    untrackedAdIds: [],
+    untrackedCommentIds: []
+  }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedTab: (tab) => set({ selectedTab: tab, currentPage: 1 }), // Reset pagination on tab change
   setBrandData: (data) => set({ brandData: data }),
