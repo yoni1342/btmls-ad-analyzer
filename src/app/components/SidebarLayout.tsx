@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Chatbot from './Chatbot';
 
 type SidebarProps = {
   children: React.ReactNode;
@@ -68,6 +69,9 @@ export default function SidebarLayout({ children }: SidebarProps) {
           {children}
         </main>
       </div>
+      
+      {/* Chatbot */}
+      <Chatbot />
     </div>
   );
-} 
+}
