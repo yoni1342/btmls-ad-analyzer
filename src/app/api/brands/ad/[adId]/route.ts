@@ -9,11 +9,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ adId
   }
 
   try {
+    // Convert adId to bigint for new schema
+    const adIdBigint = parseInt(adId, 10);
+    
     // First, get the ad details directly from the ads table
     const { data: adData, error: adError } = await supabase
       .from('ads')
       .select('*')
-      .eq('id', adId)
+      .eq('id', adIdBigint)
       .single();
 
     if (adError) {
@@ -67,16 +70,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ adId
       brand_id: brandId
     };
 
-    // Get comments for this ad with sentiment and cluster information
+    // Get comments for this ad using the same method as database functions
     const { data: comments, error: commentsError } = await supabase
       .from('comments')
-      .select(`
-        *,
-        comment_cluster (
-          meta_cluster
-        )
-      `)
-      .eq('ad_id', adId)
+      .select('*')
+      .eq('ad_id', adIdBigint) // Use bigint adId to match the database schema
       .order('created_time', { ascending: false });
 
     if (commentsError) {
@@ -84,28 +82,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ adId
       // Don't throw, just return empty comments
     }
 
+    console.log(`Found ${comments?.length || 0} comments for ad ${adId}`);
+
     // Transform comments to match expected format
     const transformedComments = (comments || []).map(comment => ({
-      id: comment.id,
+      id: comment.comment_id, // Use comment_id as the primary identifier
       comment_id: comment.comment_id,
-      message: comment.message,
-      created_time: comment.created_time,
+      message: comment.message, // Use message field (not comment_text)
+      created_time: comment.created_time, // Use created_time field
       created_at: comment.created_at,
       ad_id: comment.ad_id?.toString(),
       sentiment: comment.sentiment,
       theme: comment.theme,
-      brand: comment.brand,
+      brand: comment.brand, // Include brand from comment if available
       ad_title: adData.title,
       'Angel Type': adData.angle_type,
-      meta_cluster: comment.comment_cluster?.[0]?.meta_cluster || null,
+      meta_cluster: null, // Will be populated from clusters if needed
       funnel: adData.funnel
     }));
 
-    // Get unique clusters from comments
-    const clusters = [...new Set(transformedComments
-      .filter(c => c.meta_cluster)
-      .map(c => c.meta_cluster))]
-      .map(cluster => ({ name: cluster }));
+    // Get unique clusters from comments - for now return empty as cluster relationship needs investigation
+    const clusters: any[] = [];
 
     return NextResponse.json({ ad, comments: transformedComments, clusters });
   } catch (error) {
