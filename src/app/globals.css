@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Syntax highlighting for code blocks */
+@import 'highlight.js/styles/github-dark.css';
+
 /* Enable .dark class selector for Tailwind's `dark:` utilities */
 @custom-variant dark (&:where(.dark, .dark *));
 
