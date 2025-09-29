@@ -2,6 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Loader2, Plus } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 
 interface Message {
   id: string;
@@ -323,7 +326,80 @@ export default function Chatbot() {
                     : 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-white rounded-bl-sm'
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {message.isUser ? (
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                ) : (
+                  <div className="text-sm max-w-none">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeHighlight]}
+                      components={{
+                        // Custom styling for markdown elements in chat
+                        p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                        ul: ({ children }) => <ul className="mb-2 pl-4 space-y-1 list-disc">{children}</ul>,
+                        ol: ({ children }) => <ol className="mb-2 pl-4 space-y-1 list-decimal">{children}</ol>,
+                        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                        code: ({ children, className, ...props }) => {
+                          const match = /language-(\w+)/.exec(className || '');
+                          return (
+                            <code className="bg-white/20 dark:bg-black/20 px-1 py-0.5 rounded text-xs font-mono">
+                              {children}
+                            </code>
+                          );
+                        },
+                        pre: ({ children }) => (
+                          <pre className="bg-white/20 dark:bg-black/20 p-2 rounded text-xs font-mono overflow-x-auto mb-2">
+                            {children}
+                          </pre>
+                        ),
+                        blockquote: ({ children }) => (
+                          <blockquote className="border-l-4 border-white/30 dark:border-gray-400 pl-3 my-2 italic">
+                            {children}
+                          </blockquote>
+                        ),
+                        h1: ({ children }) => <h1 className="text-base font-bold mb-2 mt-1">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-sm font-bold mb-2 mt-1">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 mt-1">{children}</h3>,
+                        h4: ({ children }) => <h4 className="text-sm font-semibold mb-1">{children}</h4>,
+                        h5: ({ children }) => <h5 className="text-sm font-medium mb-1">{children}</h5>,
+                        h6: ({ children }) => <h6 className="text-sm font-medium mb-1">{children}</h6>,
+                        strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
+                        a: ({ href, children }) => (
+                          <a 
+                            href={href} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-blue-300 hover:text-blue-200 underline transition-colors"
+                          >
+                            {children}
+                          </a>
+                        ),
+                        table: ({ children }) => (
+                          <div className="overflow-x-auto mb-2">
+                            <table className="min-w-full border-collapse">
+                              {children}
+                            </table>
+                          </div>
+                        ),
+                        thead: ({ children }) => (
+                          <thead className="bg-white/10 dark:bg-black/10">{children}</thead>
+                        ),
+                        tbody: ({ children }) => <tbody>{children}</tbody>,
+                        tr: ({ children }) => <tr className="border-b border-white/20 dark:border-gray-600">{children}</tr>,
+                        th: ({ children }) => (
+                          <th className="text-left p-2 font-semibold text-xs">{children}</th>
+                        ),
+                        td: ({ children }) => (
+                          <td className="p-2 text-xs">{children}</td>
+                        ),
+                        hr: () => <hr className="my-3 border-white/30 dark:border-gray-600" />,
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
                 <p className={`text-xs mt-1 ${
                   message.isUser 
                     ? 'text-primary-light' 
