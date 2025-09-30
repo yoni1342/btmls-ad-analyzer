@@ -34,7 +34,7 @@ export default function CreateReportPage() {
       if (file) {
         const text = await file.text();
         try {
-          // Validate JSON
+          // Validate  JSON
           JSON.parse(text);
           dataToSend = text;
         } catch (err) {
